@@ -1,0 +1,47 @@
+---
+import Base from '../layouts/Base.astro'
+import Ending from '../components/Ending.astro'
+import { PROJECTS, FILTERS } from '../data/projects'
+import { SITE } from '../data/site'
+import { thumb, SIZES } from '../lib/img'
+
+// The wall (07 5.3; 10-copy 4.1): all ten in four equal columns, every card 3:2, with filters
+// that glide the cards to their new places. The filter is kept in the URL (?f=brand).
+const cards = await Promise.all(PROJECTS.map(async (p) => ({ p, t: await thumb(p.thumb) })))
+const count = (k: string) => (k === 'all' ? PROJECTS.length : PROJECTS.filter((p) => p.tags.includes(k as never)).length)
+const list = {
+  '@type': 'ItemList',
+  '@id': `${SITE}/projects#list`,
+  name: 'Work',
+  numberOfItems: PROJECTS.length,
+  itemListElement: PROJECTS.map((p, i) => ({ '@type': 'ListItem', position: i + 1, url: `${SITE}/projects/${p.slug}`, name: p.name })),
+}
+---
+<Base
+  title="Work | TAKramer Designs"
+  description="Ten projects by Thomas Kramer in brand, product and engineering, including Underline, Nydex, Grace One Church and Healthy Campus Week."
+  kind="list"
+  page="projects"
+  graph={[list]}
+>
+  <div class="w page-head">
+    <h1 class="title"><span class="t"><Ending text="Work" /></span></h1>
+    <p class="intro-line">Ten projects in brand, product and engineering. Smaller work is in <a class="nw" href="/one-offs">One-offs</a> and <a href="/logos">Logos</a>.</p>
+    <div class="filters" role="group" aria-label="Filter projects">
+      {FILTERS.map(([k, label, msg]) => (
+        <button type="button" data-f={k} data-msg={msg} aria-pressed={k === 'all' ? 'true' : 'false'}><span>{label}</span><span class="num">{count(k)}</span></button>
+      ))}
+    </div>
+    <p class="sr" role="status" data-filter-status></p>
+    <ul class="wall">
+      {cards.map(({ p, t }, i) => (
+        <li data-tags={p.tags.join(' ')}>
+          <a class="card" href={`/projects/${p.slug}`} data-slug={p.slug} data-vt={`wall:${p.slug}`}>
+            <img src={t.src} srcset={t.srcset} sizes={SIZES.wall} alt={p.alt} width={t.width} height={t.height} loading={i < 8 ? undefined : 'lazy'} decoding="async" />
+            <span class="cap"><span class="num">{p.num}</span><span class="n">{p.name}</span></span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </div>
+</Base>

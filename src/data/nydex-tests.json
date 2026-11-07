@@ -1,0 +1,515 @@
+[
+ {
+  "file": "api/_limit.test.js",
+  "tests": [
+   "passes when every rule is under its limit",
+   "blocks when any rule is exceeded, and stops checking after it",
+   "fails closed when the counter errors: an unmetered call is the costly one",
+   "keys off the first x-forwarded-for entry and never stores the raw IP",
+   "gives the same bucket for the same client and different for another",
+   "reads Headers objects too (Web-style handlers)",
+   "falls back to a shared bucket when no client IP is present"
+  ]
+ },
+ {
+  "file": "api/_origin.test.js",
+  "tests": [
+   "allows production, this account's previews and localhost",
+   "refuses look-alikes and other accounts' projects"
+  ]
+ },
+ {
+  "file": "api/account.test.js",
+  "tests": [
+   "returns 503 and deletes nothing when a subscription id has no Stripe secret",
+   "cancels the subscription before deleting rows when the secret is set",
+   "still deletes an account that has no subscription, without Stripe",
+   "cancels every live subscription on the customer, not only the stored one",
+   "refuses to delete a Stripe customer when billing is not configured"
+  ]
+ },
+ {
+  "file": "api/alpaca-oauth.test.js",
+  "tests": [
+   "accepts a state this server just issued for this user",
+   "returns 400 and does not exchange when state is missing",
+   "returns 400 when the state was issued for a different user",
+   "returns 400 when the state has expired"
+  ]
+ },
+ {
+  "file": "api/bars.test.js",
+  "tests": [
+   "a junk or invalid bearer does not leave a counted global hit",
+   "a per-user 429 does not count the shared ceiling",
+   "paper, a missing plan, and an unreadable plan cannot request more than 365 days",
+   "pro can request up to the existing 760-day ceiling and no further",
+   "reads the plan once per user per minute, not once per ticker"
+  ]
+ },
+ {
+  "file": "api/checkout.test.js",
+  "tests": [
+   "sends one idempotency key per user across repeated clicks"
+  ]
+ },
+ {
+  "file": "api/companyfacts.test.js",
+  "tests": [
+   "keeps both filing dates and does not score a calendar Q4",
+   "keeps the current quarter of a filing, not its year-ago comparative"
+  ]
+ },
+ {
+  "file": "api/earnings-ics.test.js",
+  "tests": [
+   "answers 503, not an empty calendar, when any FMP call fails",
+   "serves from the date cache without charging FMP again"
+  ]
+ },
+ {
+  "file": "api/keepalive.test.js",
+  "tests": [
+   "fails closed when CRON_SECRET is unset",
+   "rejects a caller with no Authorization header",
+   "rejects a wrong secret, and a bare secret without the Bearer scheme",
+   "accepts the cron's header"
+  ]
+ },
+ {
+  "file": "api/stripe-webhook.test.js",
+  "tests": [
+   "rejects a bad signature before any plan write",
+   "does not grant pro for an unpaid checkout",
+   "does not grant pro when the session price is not STRIPE_PRICE_PRO",
+   "does not grant pro when STRIPE_PRICE_PRO is unset",
+   "grants pro for a paid checkout at the configured price",
+   "grants pro when payment_status is no_payment_required and the price matches",
+   "sets paper on past_due and does not trust a client-supplied user id",
+   "grants pro only for an active or trialing subscription",
+   "a late active event does not re-grant pro after the subscription is canceled",
+   "keeps an active subscription at another price, or with STRIPE_PRICE_PRO unset, on paper",
+   "the cancel of an old subscription does not downgrade a user paying on a newer one",
+   "a different subscription can still grant pro"
+  ]
+ },
+ {
+  "file": "e2e/smoke.spec.js",
+  "tests": [
+   "terms gate lets you in, then the shell mounts",
+   "rail navigation switches pages",
+   "mode switch goes to live and back",
+   "settings sheet opens and closes",
+   "/terms, /privacy and /disclosures render the documents standalone"
+  ]
+ },
+ {
+  "file": "src/MorphIcon.test.jsx",
+  "tests": [
+   "draws every icon with exactly three lines",
+   "collapses unused lines to an invisible point at the center",
+   "falls back to a visible shape for an unknown icon name",
+   "morphs same-shape icons by rotation, not by moving coordinates",
+   "turns the short way round between plus and close",
+   "keeps turning in one direction rather than unwinding a half turn",
+   "morphs coordinates between different shapes",
+   "does not animate on first render"
+  ]
+ },
+ {
+  "file": "src/RefreshCountdown.test.jsx",
+  "tests": [
+   "ticks down once per second without requiring a parent re-render",
+   "fires onRefresh when the countdown hits zero and resets",
+   "pauses while the market is closed"
+  ]
+ },
+ {
+  "file": "src/Settings.test.jsx",
+  "tests": [
+   "sign out everywhere passes the global scope",
+   "plain sign out does not"
+  ]
+ },
+ {
+  "file": "src/SetupCard.drift.test.jsx",
+  "tests": [
+   "shows the stance and does not call a seasonal surprise a beat",
+   "shows the block on the trade button and halves a reward under 2:1",
+   "gives a supported stance no colour and leads with the sample size",
+   "places nothing on the first click; the order goes on Confirm"
+  ]
+ },
+ {
+  "file": "src/TaxTab.test.jsx",
+  "tests": [
+   "leads with the tax bill",
+   "leads with the tax saved, not a $0 bill",
+   "shows the deduction and the carryforward",
+   "flags a wash-sale candidate by ticker",
+   "says nothing about wash sales when there are none",
+   "warns that a trade held over a year is being overstated",
+   "always states what the estimator does not model",
+   "warns when the trade log is close to its 500-entry cap",
+   "calls California's 13.3% a ceiling rather than the user's rate",
+   "says Washington does not tax short-term gains"
+  ]
+ },
+ {
+  "file": "src/brokerLink.test.js",
+  "tests": [
+   "returns the code and state when the state matches the one this browser stored",
+   "drops a code whose state does not match",
+   "drops a code when no link was started in this browser",
+   "ignores a URL with no code",
+   "burns the state so a replayed code cannot be used twice",
+   "stores the server-issued state and sends it back with the code"
+  ]
+ },
+ {
+  "file": "src/cloudSync.owner.test.js",
+  "tests": [
+   "clears another account's local state before hydrating",
+   "treats a device with no recorded owner as foreign",
+   "keeps the same account's local state across reloads",
+   "writes only cs_* keys from the cloud blob"
+  ]
+ },
+ {
+  "file": "src/cloudSync.test.js",
+  "tests": [
+   "returns null when the cloud log adds nothing",
+   "appends cloud entries missing locally, keeping local ones first",
+   "handles a missing local log",
+   "includes settings and excludes the Alpaca key, secret and plan",
+   "works with no account: local mode still gets its data out"
+  ]
+ },
+ {
+  "file": "src/configDiff.test.js",
+  "tests": [
+   "reports nothing without a saved config, or when nothing moved",
+   "treats a missing threshold as its default, and ticker order and case as noise",
+   "names each field that changed, in page order",
+   "reports a strategy switch once, not also as a threshold change",
+   "reads strategy, interval and score floor"
+  ]
+ },
+ {
+  "file": "src/driftBrief.test.js",
+  "tests": [
+   "restores omitted contradictions, blocks a surviving skeptic, and rejects an upgraded stance",
+   "drops a sentence that states a number the sheet does not hold"
+  ]
+ },
+ {
+  "file": "src/driftData.test.js",
+  "tests": [
+   "asks once per ticker however often the live tab rescans",
+   "keeps an ETF's empty earnings as an answer",
+   "does not re-ask a failed ticker on every refresh"
+  ]
+ },
+ {
+  "file": "src/driftLedger.test.js",
+  "tests": [
+   "withholds the median when seasonal SUE is positive and the estimate is a miss",
+   "attaches that sheet from the drift job without rescoring",
+   "skips a scheduled report with no actual EPS and keeps the last real one",
+   "enters an after-close report at the reaction bar, not the close before it",
+   "treats a bar that touches the stop and the target as a loss",
+   "caps a clean drift at weak when the price proxy is mostly not earnings",
+   "uses a stored sheet only when it replayed the user's stop and target"
+  ]
+ },
+ {
+  "file": "src/engine-spec.test.js",
+  "tests": [
+   "carries no RobinhoodAgent-only sections",
+   "covers every strategy the UI offers",
+   "skips exactly the thresholds that strategy's scorer cannot act on",
+   "keeps global NOT_IMPLEMENTED for keys no scorer reads",
+   "renders no slider the spec does not define",
+   "gives every rendered slider usable bounds",
+   "renders only sliders that strategy's scorer reads",
+   "does not render MACD volume threshold"
+  ]
+ },
+ {
+  "file": "src/ics.test.js",
+  "tests": [
+   "escapes TEXT per RFC 5545",
+   "folds at 75 octets without splitting a character",
+   "builds all-day events with an exclusive end and CRLF lines",
+   "summarises one study, or its own withheld reason",
+   "keeps only the newest sheet per ticker, never pooling older ones"
+  ]
+ },
+ {
+  "file": "src/indicators.test.js",
+  "tests": [
+   "seeds the first non-null value with the SMA of the first p closes",
+   "tracks a rising series upward",
+   "returns nulls for the first p bars",
+   "pins near 100 for a monotonically rising series",
+   "pins near 0 for a monotonically falling series",
+   "is null before the window fills and symmetric after",
+   "equals the fixed high-low spread for a flat series",
+   "returns null with fewer than 2*p bars",
+   "produces a high ADX on a clean uptrend and a low one on chop",
+   "computes percent change across the trimmed window",
+   "returns nothing for a single-ticker group",
+   "flags an outlier that ran ahead of its sector peers as 'rich'",
+   "clamps start capital into $1–$1,000,000 and defaults garbage",
+   "returns the documented result shape with a coherent equity curve",
+   "honors the 3-bar cooldown between trades on the same ticker",
+   "produces no trades (and a flat curve) when data is too short",
+   "returns null or an array of setups, never throws, for each strategy id",
+   "defaults to the VWAP scorer for an unknown strategy id",
+   "never books a win on a bar that also touched the stop",
+   "reports how many tickers fell back to their full history"
+  ]
+ },
+ {
+  "file": "src/legal.test.js",
+  "tests": [
+   "carries no unfilled placeholder",
+   "names the state so it reads inside a sentence",
+   "uses a contact address the documents can link",
+   "imports the constants rather than hardcoding them"
+  ]
+ },
+ {
+  "file": "src/livelineChart.test.js",
+  "tests": [
+   "spaces points by exactly `step` and pins the newest to the anchor",
+   "round-trips timeAt -> indexAt",
+   "clamps indexAt outside the series instead of returning out-of-range",
+   "sizes the window so the oldest point stays inside the visible region",
+   "survives a single-point series without dividing by zero",
+   "returns null for missing or empty bars",
+   "splits the newest bar out as liveCandle",
+   "carries OHLC through unchanged",
+   "emits seconds, not the milliseconds Alpaca returns",
+   "uses the interval's bar width",
+   "spaces candles evenly even when the real bars have a weekend hole",
+   "maps synthetic axis time back to the real bar timestamp",
+   "builds the close-price line series alongside the candles",
+   "falls back to hourly width for an unknown interval",
+   "charts only the most recent maxBars",
+   "keeps realTimeAt aligned to the windowed slice, not the full series",
+   "handles a series shorter than maxBars",
+   "includes an hour for intraday intervals and omits it for daily",
+   "renders nothing for a null timestamp",
+   "defaults to CHART_BAR_BUFFER and keeps the newest bars",
+   "returns {} for null/undefined input",
+   "reads count, move in words, last close and range",
+   "says down for a falling series",
+   "covers only the charted window",
+   "handles empty input",
+   "counts trades, not points",
+   "handles too little data",
+   "equitySummary refuses a missing or non-positive start capital",
+   "equitySummary skips non-finite points in min/max",
+   "calls a move under 0.05% flat, and 0.05% not flat",
+   "chartSummary filters non-finite highs and lows",
+   "chartSummary does not divide by a first close of 0"
+  ]
+ },
+ {
+  "file": "src/presetDigest.test.js",
+  "tests": [
+   "keeps only opted-in presets with tickers, and survives junk",
+   "caps tickers across presets",
+   "builds a body with no broker name and no advice, and skips empty days",
+   "skips weekends and exchange holidays",
+   "advances the day index by one per trading day, not per calendar day",
+   "rotates the batch so every eligible user gets a turn",
+   "sizes the bar window to hold 60+ bars and still fit one 1000-bar page"
+  ]
+ },
+ {
+  "file": "src/pretrade.test.js",
+  "tests": [
+   "sizes like placeOrder and names the binding cap",
+   "flags a score below the minimum and reports a size error instead of throwing",
+   "says the account is unreadable rather than too small when equity is null",
+   "counts trades, distinct days, and median R for this ticker only",
+   "warns on a realized loss closed within 30 days",
+   "still warns after a first re-entry inside the window",
+   "is quiet on a bear (sell) setup",
+   "is quiet for old losses, gains, and other tickers",
+   "omits when no sheet, says withheld when withheld"
+  ]
+ },
+ {
+  "file": "src/previewData.test.js",
+  "tests": [
+   "produces bars the scanner can actually read",
+   "is deterministic: same ticker, same series",
+   "yields setups across the strategy set",
+   "drives a backtest without throwing"
+  ]
+ },
+ {
+  "file": "src/scanJob.test.js",
+  "tests": [
+   "reports workerSupported false when Worker is missing",
+   "scoreOnly skips the backtest and still returns hits",
+   "full scan still runs a backtest when scoreOnly is unset"
+  ]
+ },
+ {
+  "file": "src/sectorTab.test.js",
+  "tests": [
+   "does not relabel a short history as a 6-month return",
+   "computes the return from the close that many bars back",
+   "requires 200 bars before it will call an average a 200-day average",
+   "keeps the benchmarks out of the ranking"
+  ]
+ },
+ {
+  "file": "src/slidingIndicator.test.js",
+  "tests": [
+   "writes the active item's box and goes live a frame later",
+   "clears the indicator when nothing is active, so no stale highlight stays",
+   "only matches direct children: a nested .on is not the strip's item",
+   "an explicit choice wins; system follows the OS; no OS preference is dark"
+  ]
+ },
+ {
+  "file": "src/supabase.test.js",
+  "tests": [
+   "uses pkce and still detects the session in the URL",
+   "stays null when the env vars are missing"
+  ]
+ },
+ {
+  "file": "src/taxCalc.test.js",
+  "tests": [
+   "charges only on the income above the threshold, not the whole gain",
+   "charges on the full gain once entirely above the threshold",
+   "is zero below the threshold",
+   "is zero on a losing year regardless of other income",
+   "deducts up to $3,000 and carries the rest forward",
+   "halves the cap for married filing separately",
+   "removes the cap under a Section 475(f) election",
+   "counts fees into the loss rather than ignoring them",
+   "reports state savings on the deducted portion only",
+   "never charges tax on a losing year",
+   "taxes the gain at the marginal rate stacked on other income",
+   "subtracts fees from the taxable base",
+   "after-tax uses the signed net, so a loss year is not reported as profit",
+   "Missouri exempts capital gains",
+   "Washington does not tax short-term gains",
+   "New Hampshire repealed its interest-and-dividends tax",
+   "Massachusetts uses its 8.5% short-term rate, not the 5% flat rate",
+   "covers all 50 states plus DC",
+   "flags a re-entry within 30 days of a realized loss",
+   "does not flag a re-entry after 30 days",
+   "does not flag a re-entry after a WINNING trade",
+   "does not flag a different ticker",
+   "counts each losing trade once even with several re-entries",
+   "handles an empty or missing log",
+   "allocates realized P&L to the four IRS periods by close date",
+   "falls back to the open date when no close date was recorded",
+   "is progressive, not flat at the marginal rate",
+   "is zero at zero income"
+  ]
+ },
+ {
+  "file": "src/tokens.test.js",
+  "tests": [
+   "primary button ink reads on its own fill"
+  ]
+ },
+ {
+  "file": "src/tradeLog.test.js",
+  "tests": [
+   "patches realized P&L and derives the R-multiple from the recorded risk",
+   "records a negative realized P&L (loss) with a negative R-multiple",
+   "does not mutate the input array or its entries",
+   "patches only the most recent open entry for the ticker, leaving others alone",
+   "never touches an already-closed entry",
+   "returns the log unchanged when no open entry matches the ticker",
+   "omits realizedRR when the entry has no usable risk",
+   "matches a buy then sell into one closed long round-trip",
+   "handles shorts: sell first then buy back, P&L inverted",
+   "splits a partial close FIFO across lots and leaves the remainder open",
+   "sorts out-of-order fills chronologically before matching",
+   "patches a Nydex-placed entry with exact fill-derived P&L instead of duplicating",
+   "replaces a Nydex close-time P&L estimate with the exact fill number",
+   "does not patch while the Nydex order's lot is still partially open",
+   "is a no-op (same reference) when the entry already carries the exact numbers",
+   "adds external trades and is idempotent across re-syncs",
+   "replaces stale imported open rows once the lot closes"
+  ]
+ },
+ {
+  "file": "src/trading.test.js",
+  "tests": [
+   "drops setups below minScore and sorts best first",
+   "skips tickers already held in the same direction, keeps opposite side",
+   "tolerates null/undefined positions and empty setups",
+   "allows a 2:1 setup and halves risk under 2:1",
+   "blocks a stop or target on the wrong side, and a stop inside 0.05%",
+   "blocks a same-side position and a size under one share",
+   "leaves the buying-power reserve off unless the caller enforces it",
+   "treats an ATR-built 2:1 as 2:1 despite float rounding",
+   "does not size a setup that has no account snapshot",
+   "charges nothing on the buy side (SEC fee is sell-only)",
+   "charges the SEC rate on the notional when selling",
+   "is a small fraction of a percent of notional",
+   "isMarketOpen returns a boolean and marketStatusText a non-empty string",
+   "the two functions always agree (contract test)",
+   "etDateStr stays on the ET calendar day across the UTC midnight boundary",
+   "treats a known federal holiday as closed",
+   "covers 2027 and says so when the calendar runs out",
+   "tells an Alpaca live key from a paper key",
+   "prefers equity and falls back to the older portfolio_value",
+   "returns null: never 0: when the account value is unreadable",
+   "keeps the cash-floor comparison closed when the value is unknown",
+   "sends APCA headers for a pasted key pair",
+   "sends a bearer token for an OAuth link, and never the sentinel secret",
+   "strips whitespace and control characters from a pasted key",
+   "does not mistake a token for a live key, or a key for a token",
+   "clamps oversized risk, position and notional settings",
+   "throws on a NaN size without calling Alpaca"
+  ]
+ },
+ {
+  "file": "src/useAutoTrader.test.jsx",
+  "tests": [
+   "places a trade when a setup clears the floor",
+   "does not trade when the account is missing",
+   "does not trade when positions cannot be read",
+   "fails closed when buying power is unreadable",
+   "fails closed on an unreadable account payload",
+   "re-entrancy latch: a second cycle while one runs is skipped",
+   "auto-trader starts OFF (ToS §6: resets every load)"
+  ]
+ },
+ {
+  "file": "src/useDialogFocus.test.jsx",
+  "tests": [
+   "moves focus to the first focusable element on open",
+   "wraps Tab from the last element back to the first",
+   "wraps Shift-Tab from the first element to the last",
+   "pulls focus back in when it has escaped the dialog",
+   "leaves interior Tab steps alone",
+   "restores focus to the previously focused element on unmount",
+   "closes on Escape when onClose is given",
+   "ignores Escape when no onClose is given: the hard-gate case",
+   "does nothing while inactive"
+  ]
+ },
+ {
+  "file": "src/watchlist.test.js",
+  "tests": [
+   "splits, trims, and uppercases",
+   "drops empty entries from stray/trailing commas",
+   "returns [] for empty, whitespace, or null input",
+   "preserves duplicates (dedup is the caller's job via Set)"
+  ]
+ }
+]

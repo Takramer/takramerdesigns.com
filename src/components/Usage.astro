@@ -1,0 +1,89 @@
+---
+import { load, view, days, FEED } from '../lib/usage'
+// N16: the Claude Code token count and two day-by-day charts, on Home and About. Each chart is the
+// 7 by 53 week grid, but every day is a solid ink square sized by its count instead of shaded; a
+// day with none is a dot (Thomas, 4 November: the hairline ticks read too small). Phones show the
+// last 26 weeks, which he approved on 4 November.
+// Everything is in the HTML at build; the script below only asks the gist again when the build's
+// copy is stale. The charts are aria-hidden: the sentences and the month table carry the facts.
+const u = await load()
+const v = view(u)
+const { start, all, months } = days(v.today)
+const table = v.months(all)
+// Week columns 0 to 52. A month starting in the last two has no room for its name to the right, so it
+// goes left of the tick (end); on phones that crowds a month starting four weeks or less before it.
+const ws = months.map((m) => Math.floor((m.col - 1) / 7))
+const marks = months.map((m, i) => ({ name: m.name, w: ws[i], end: ws[i] >= 51, crowd: i === months.length - 2 && ws[i + 1] >= 51 && ws[i + 1] - ws[i] <= 4 }))
+const cals = [
+  { key: 'claude', title: 'Claude Code activity', sum: v.claudeSummary, len: v.claude },
+  { key: 'github', title: 'GitHub contributions', sum: v.githubSummary, len: v.github },
+] as const
+const tick = (n: number | null) => (n ? `--v: ${n}` : undefined)
+---
+<section class="usage" aria-labelledby="usage-h" data-usage data-generated={u.generatedAt} data-feed={FEED}>
+  <h2 id="usage-h">Claude Code token burn</h2>
+  <div class="usage-body">
+    <p class="usage-total"><span class="v" data-u="total">{v.total}</span> <span class="c">tokens since <span data-u="since">{v.since}</span></span></p>
+    <p class="note">Thomas also works every day with other SI (super intelligence) tools and keeps up as each one changes: Muse from Meta, Grok, Cursor, Framer Agent, Comet from Perplexity, Claude Duet, Google Gemini, Gemini Notebook, OpenAI Codex and ChatGPT.</p>
+    {cals.map((c) => (
+      <div class="heat">
+        <h3>{c.title}</h3>
+        <div class="sq" aria-hidden="true" data-cal={c.key} data-start={start}>
+          <div class="cells">{all.map((d) => <i class:list={{ t: d === v.today }} style={tick(c.len(d))} />)}</div>
+          <div class="mons">{marks.map((m) => <b class:list={{ early: m.w < 27, end: m.end, crowd: m.crowd }} style={`--w: ${m.w + 1}; --wn: ${m.w - 26}`}>{m.name}</b>)}</div>
+        </div>
+        <p class="heat-sum" data-u={c.key}>{c.sum}</p>
+      </div>
+    ))}
+    <p class="legend" aria-hidden="true">One square a day; a bigger square means more use. <span class="lg-t"><i class="t" /> Today</span></p>
+    <details class="usage-table">
+      <summary>Month by month</summary>
+      <table>
+        <thead><tr><th scope="col">Month</th><th scope="col">Claude Code tokens</th><th scope="col">GitHub contributions</th></tr></thead>
+        <tbody data-u="months">
+          {table.map(([m, t, g]) => <tr><th scope="row">{m}</th><td>{t}</td><td>{g}</td></tr>)}
+        </tbody>
+      </table>
+    </details>
+    <p class="label usage-at"><time datetime={u.generatedAt} data-u="updated">{v.updated}</time></p>
+  </div>
+</section>
+
+<script>
+  import { trim, view, add, etDay, STALE } from '../lib/usage'
+  // Over 4 hours old: fetch the gist once and repaint in place. Any failure keeps the build's numbers.
+  for (const el of document.querySelectorAll<HTMLElement>('[data-usage]')) {
+    const was = Date.parse(el.dataset.generated ?? '')
+    if (!(Date.now() - was > STALE)) continue
+    fetch(`${el.dataset.feed}?t=${Math.floor(Date.now() / 6e4)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((raw) => {
+        const u = trim(raw)
+        if (!u || Date.parse(u.generatedAt) <= was) return
+        const v = view(u, etDay(Date.now()))
+        const set = (k: string, s: string) => { const n = el.querySelector(`[data-u="${k}"]`); if (n) n.textContent = s }
+        set('total', v.total); set('since', v.since); set('claude', v.claudeSummary); set('github', v.githubSummary); set('updated', v.updated)
+        el.querySelector('time')?.setAttribute('datetime', u.generatedAt)
+        el.dataset.generated = u.generatedAt
+        let all: string[] = []
+        for (const cal of el.querySelectorAll<HTMLElement>('[data-cal]')) {
+          const len = cal.dataset.cal === 'github' ? v.github : v.claude
+          // ponytail: squares cover the build's 53 weeks; a day past the build's week waits for the next build.
+          const ticks = cal.querySelectorAll('i')
+          all = Array.from(ticks, (_, i) => add(cal.dataset.start!, i))
+          ticks.forEach((t, i) => {
+            const n = len(all[i])
+            t.style.setProperty('--v', n ? String(n) : '0')
+            t.classList.toggle('t', all[i] === v.today)
+          })
+        }
+        // The month table: same months as the build, so only the counts change.
+        const rows = v.months(all)
+        el.querySelectorAll('[data-u="months"] tr').forEach((tr, i) => {
+          const r = rows[i]
+          if (r && tr.firstElementChild?.textContent === r[0]) tr.querySelectorAll('td').forEach((td, j) => (td.textContent = r[j + 1]))
+        })
+      })
+      .catch(() => {})
+  }
+</script>

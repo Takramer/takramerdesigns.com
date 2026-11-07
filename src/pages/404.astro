@@ -1,0 +1,51 @@
+---
+import Base from '../layouts/Base.astro'
+import Ending from '../components/Ending.astro'
+import { contours } from '../lib/marks'
+// 404 (10-copy 4.7; N15). The footer drops the scripture row, so faith and Star Wars never share a screen.
+// The numerals are Endless's own outlines, drawn as /logos draws a mark at 400%: a tint where the
+// fill belongs, a 1 px outline and a square on every anchor point. One point on the 0 has been
+// pulled off its path; an empty square marks where it belongs. The plate draws itself, then the
+// reader can drag the point home (site.js, I14).
+// ponytail: the outlines are baked from public/fonts/Endless-Regular.woff2 (y down, cap height at 0);
+// rebake them if the font file changes.
+const REST = 'M576 436L576 527L477 527L477 685L379 685L379 527L24 527L24 390L368 17L477 17L477 436ZM103 436L379 436L379 127ZM733 355Q733 355 733 375Q733 395 739 430Q745 464 757 493Q768 522 785 544Q802 566 824 582Q845 597 871 605Q897 613 928 613Q958 613 984 605Q1010 597 1032 582Q1053 566 1070 544Q1087 522 1099 493Q1110 464 1116 430Q1122 395 1122 355Q1122 314 1116 280Q1110 245 1099 217Q1087 188 1070 166Q1053 143 1032 128Q1010 113 984 105Q958 97 928 97Q897 97 871 105Q845 113 824 128Q802 143 785 166Q768 188 757 217Q745 245 739 280Q733 314 733 355ZM1823 436L1823 527L1724 527L1724 685L1626 685L1626 527L1271 527L1271 390L1615 17L1724 17L1724 436ZM1350 436L1626 436L1626 127Z'
+const ZERO = 'M638 355Q638 355 638 329Q638 303 648 257Q657 211 675 172Q693 133 719 102Q744 71 776 50Q808 28 847 17Q885 5 928 5Q970 5 1009 17Q1047 28 1079 50Q1111 71 1137 102Q1162 133 1180 172Q1198 211 1208 257Q1217 303 1217 355Q1217 407 1208 453Q1198 499 1180 538Q1162 577 1137 608Q1111 638 1079 660Q1047 681 1009 693Q970 704 928 704Q885 704 847 693Q808 681 776 660Q744 638 719 608Q693 577 675 538Q657 499 648 453Q638 407 638 355Z'
+const HOME = '1137 102', LOST = '1380 -150'
+const SLIP = ZERO.replace(HOME, LOST)
+// The end of every segment is an anchor point; the lost one is drawn on its own.
+const ANCHORS = [...new Set([...(REST + ZERO).matchAll(/[MLQ][^MLQZ]+/g)].map((m) => m[0].slice(1).split(' ').slice(-2).join(' ')))]
+  .filter((p) => p !== HOME).map((p) => `M${p}h0`).join('')
+---
+<Base
+  title="Page not found | TAKramer Designs"
+  description="This page moved or never existed. The links lead to the work, the About page and a way to reach Thomas Kramer."
+  page="404"
+  ask={false}
+  scripture={false}
+  noindex
+>
+  <div class="w nf">
+    <p class="num">Error 404</p>
+    <figure class="nf-fig">
+      <div class="nf-plate">
+        <svg viewBox="-138 -250 2130 1000" aria-hidden="true" focusable="false">
+          <path class="ghost" d={REST + ZERO} />
+          {contours(REST).map((d) => <path class="line" d={d} pathLength="1" />)}
+          <path class="line slip" d={SLIP} pathLength="1" />
+          <path class="pts" d={ANCHORS} />
+          <path class="home" d={`M${HOME}h0`} /><path class="hole" d={`M${HOME}h0`} />
+          <path class="lost" d={`M${LOST}h0`} />
+        </svg>
+        <span class="pct" aria-hidden="true">400%</span>
+        {/* I14: the reader drags the point home, or presses it. Script only. */}
+        <button class="nf-grab" type="button" hidden data-zero={ZERO} data-home={HOME} data-lost={LOST}><span class="sr">Put the point back on its path</span></button>
+      </div>
+      <figcaption><span class="num">Fig. 404</span> <span class="nf-say">One anchor point, pulled off its path.</span><span class="nf-try"> Drag it back.</span></figcaption>
+    </figure>
+    <h1 class="title"><span class="t"><Ending text="These aren't the pages you're looking for." /></span></h1>
+    <p class="lede">This page moved or never existed. The links below lead to the work, the about page and a way to reach Thomas.</p>
+    <p class="read"><a class="rule" href="/">Move along.</a></p>
+    <nav aria-label="Ways back"><ul class="map"><li><a href="/projects">Work</a></li><li><a href="/about">About</a></li><li><a href="/contact">Contact</a></li></ul></nav>
+  </div>
+</Base>

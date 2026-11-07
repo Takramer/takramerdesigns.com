@@ -1,0 +1,20 @@
+---
+import { NAV } from '../data/site'
+import logo from '../assets/takd-logo.svg?raw'
+
+// The logotype alone, top left (film picks, 1 November); its shapes inline so it takes the ink.
+const shapes = (logo.match(/<(?:polygon|path)[^>]*\/>/g) ?? []).join('').replace(/\s+/g, ' ')
+const path = Astro.url.pathname.replace(/\.html$/, '').replace(/(.)\/$/, '$1')
+// Work is a button that opens its sheet; it stays lit on the wall, a case and the two pages under it.
+const underWork = path === '/projects' || path.startsWith('/projects/') || path === '/one-offs' || path === '/logos'
+const current = (href: string) => (path === href ? 'page' : href === '/projects' && underWork ? 'true' : undefined)
+---
+<header class="bar">
+  <a class="name" href="/"><svg viewBox="0 0 675 227.5" fill="currentColor" aria-hidden="true" focusable="false" set:html={shapes} /><span class="sr">TAKD, Thomas Kramer, home</span></a>
+  <button class="menu" type="button" aria-expanded="false" aria-controls="nav"><span class="sr">Menu</span><i></i><i></i><i></i></button>
+  <nav id="nav" aria-label="Main"><ul>{NAV.map(([n, h, sub]) => (
+    <li class={sub && 'has-sub'}>{sub
+      ? <><button class="nav-l" type="button" aria-expanded="false" aria-controls="nav-sub" aria-current={current(h) && 'true'}>{n}<b class="ic chev" aria-hidden="true"><i></i><i></i><i></i></b></button><ul class="sub" id="nav-sub">{sub.map(([sn, sh]) => <li><a href={sh} aria-current={path === sh ? 'page' : undefined}>{sn}</a></li>)}</ul></>
+      : <a href={h} aria-current={current(h)}>{n}</a>}</li>
+  ))}</ul></nav>
+</header>

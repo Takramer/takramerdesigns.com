@@ -1,0 +1,222 @@
+---
+import { pic } from '../lib/img'
+import { WEEKS } from '../data/good-word'
+
+// Good Word's case page: all 54 weekly covers on a turning sphere (the archive site had one in
+// Three.js; Thomas asked for it back on 4 November, fitted to this site). Plain CSS 3D: each cover
+// sits on a ring of latitude, faces out, and hides its back, so only the near half shows. It turns
+// slowly by itself, a drag turns it, the keyboard's focus turns a cover to the front, and a press
+// opens it in the viewer with its week number. Without script it is a grid of the covers.
+const pad = (n: number) => String(n).padStart(2, '0')
+// Rings from the top: 1 + 6 + 12 + 16 + 12 + 6 + 1 = 54, one week after another round each ring.
+const RINGS: [lat: number, n: number][] = [[90, 1], [60, 6], [30, 12], [0, 16], [-30, 12], [-60, 6], [-90, 1]]
+const spots = RINGS.flatMap(([lat, n], r) => Array.from({ length: n }, (_, i) => ({ lat, lon: (360 / n) * (i + (r % 2) / 2) })))
+const covers = await Promise.all(WEEKS.map(async (title, i) => {
+  const path = `good-word/w${pad(i + 1)}.jpg`
+  const [t, f] = await Promise.all([pic(path, [240, 480]), pic(path, [540, 1080])])
+  return { n: i + 1, title, t, f, ...spots[i] }
+}))
+---
+<section class="weeks" aria-labelledby="weeks-h">
+  <h2 id="weeks-h">Every week’s cover</h2>
+  <p class="weeks-sub">{covers.length} weeks in a row, each opening that week’s carousel. <span class="drag" hidden>Drag to turn the sphere; press</span><span class="nodrag">Press</span> a cover to open it.</p>
+  <div class="globe" data-globe>
+    <ol class="ball">
+      {covers.map((c, i) => (
+        <li style={`--lat: ${c.lat}deg; --lon: ${c.lon}deg`}>
+          <a class="wk" href={c.f.src} data-i={i} data-srcset={c.f.srcset} data-n={c.title}>
+            <img src={c.t.src} srcset={c.t.srcset} sizes="(min-width: 900px) 120px, 60px" alt={`Good Word, week ${c.n}: ${c.title}`} width={c.t.width} height={c.t.height} loading="lazy" decoding="async" />
+            <span class="wk-n num" aria-hidden="true">{pad(c.n)}</span>
+          </a>
+        </li>
+      ))}
+    </ol>
+  </div>
+  <p class="globe-read" aria-hidden="true"><span class="num">W{pad(covers.length)}</span> <span class="t">{covers.at(-1)!.title}</span></p>
+</section>
+<dialog class="viewer gw" aria-labelledby="gw-n" tabindex="-1">
+  <div class="v-top">
+    <p class="v-count"><span>Week </span><span class="num v-i">01</span><span class="sr"> of </span><span class="v-pt" aria-hidden="true"></span><span class="num v-t">{covers.length}</span></p>
+    <p class="v-nav">
+      <button type="button" data-go="-1" aria-label="Previous week"><b class="ic prev" aria-hidden="true"><i></i><i></i><i></i></b><span>Previous</span></button>
+      <button type="button" data-go="1" aria-label="Next week"><span>Next</span><b class="ic next" aria-hidden="true"><i></i><i></i><i></i></b></button>
+      <button type="button" data-close><span>Close</span><b class="ic x" aria-hidden="true"><i></i><i></i><i></i></b></button>
+    </p>
+  </div>
+  <div class="v-stage"><img class="v-img" alt="" /></div>
+  <p class="v-cap" aria-live="polite"><span class="c">Good Word</span><span class="n" id="gw-n"></span></p>
+</dialog>
+
+<script>
+  const globe = document.querySelector<HTMLElement>('[data-globe]')
+  const dlg = document.querySelector<HTMLDialogElement>('dialog.gw')
+  if (globe && dlg) {
+    const ball = globe.querySelector<HTMLElement>('.ball')!
+    const tiles = [...globe.querySelectorAll<HTMLAnchorElement>('.wk')]
+    const read = document.querySelector('.globe-read')!
+    const reduce = document.documentElement.classList.contains('still')
+    globe.classList.add('on')
+    document.querySelector<HTMLElement>('.weeks-sub .drag')!.hidden = false
+    document.querySelector<HTMLElement>('.weeks-sub .nodrag')!.hidden = true
+
+    // The turn: ay round the vertical axis, ax tipped toward the reader, both in degrees.
+    let ax = -12, ay = 0, vx = 0, vy = 0, goal: [number, number] | null = null
+    // touched: once the reader presses or tabs to the sphere it stops turning by itself for good (round 10).
+    let touched = false, held = false, moved = false, sx = 0, sy = 0, lx = 0, ly = 0, seen = false, last = 0
+    const paint = () => (ball.style.transform = `rotateX(${ax}deg) rotateY(${ay}deg)`)
+    const label = (i: number) => {
+      read.querySelector('.num')!.textContent = `W${String(i + 1).padStart(2, '0')}`
+      read.querySelector('.t')!.textContent = tiles[i].dataset.n!
+    }
+    // With no pointer on a cover, the line under the sphere names the one nearest the front.
+    const R = Math.PI / 180
+    const at = tiles.map((a) => { const st = a.parentElement!.style; return [parseFloat(st.getPropertyValue('--lat')) * R, parseFloat(st.getPropertyValue('--lon')) * R] })
+    let hover = -1, shown = -1
+    // A cover near the rim is seen edge-on, a sliver a few pixels wide; it takes no press until it
+    // turns to show 24 px, the smallest target WCAG 2.5.8 allows. Focus still brings it round.
+    // The cover width is read once and on resize, not each frame: a read after the transform write
+    // forced a layout every frame, and that was most of the drag's stutter (round 9).
+    // Round 15 (Thomas picked a): only covers turned mostly to the front take a press, so no two live
+    // covers overlap on screen and none is under 24 px; a drag or the focus brings the rest round.
+    const FACE = 0.7
+    let tw = tiles[0].parentElement!.offsetWidth || 1
+    new ResizeObserver(() => (tw = tiles[0].parentElement!.offsetWidth || 1)).observe(globe)
+    const off = tiles.map(() => false)
+    const front = () => {
+      let best = 0, bz = -2
+      const zmin = Math.max(24 / tw, FACE), sx = Math.sin(ax * R), cx = Math.cos(ax * R)
+      at.forEach(([la, lo], i) => {
+        const z = -Math.sin(la) * sx + Math.cos(la) * Math.cos(lo + ay * R) * cx
+        if (z > bz) { bz = z; best = i }
+        // While held, CSS takes every cover out of the pointer's way, so no style writes then.
+        if (!held && off[i] !== z < zmin) tiles[i].style.pointerEvents = (off[i] = z < zmin) ? 'none' : ''
+      })
+      return best
+    }
+    const frame = (t: number) => {
+      const dt = Math.min(48, t - (last || t)); last = t
+      if (goal) { // the focused cover comes round to the front
+        let d = ((goal[1] - ay + 540) % 360) - 180
+        ay += d * 0.12; ax += (goal[0] - ax) * 0.12
+        // Once round, the page follows: the browser scrolled to where the cover was before the turn.
+        if (Math.abs(d) < 0.1 && Math.abs(goal[0] - ax) < 0.1) { goal = null; (document.activeElement as HTMLElement | null)?.closest('.ball')?.contains(document.activeElement) && document.activeElement!.scrollIntoView({ block: 'nearest' }) }
+      } else if (!held) {
+        // The fling: v is in degrees a millisecond and fades by time, so a 120 Hz screen and a 60 Hz
+        // one coast the same distance.
+        ay += vy * dt; ax = Math.max(-60, Math.min(60, ax + vx * dt))
+        const k = Math.pow(0.94, dt / 16.7); vx *= k; vy *= k
+        if (!reduce && !touched && Math.abs(vy) < 0.002) ay += dt * 0.004 // about 4 degrees a second
+      }
+      paint()
+      const f = front(), k = hover >= 0 ? hover : f
+      if (k !== shown) label(shown = k)
+      if (seen) requestAnimationFrame(frame); else last = 0
+    }
+    // Only turn while the sphere is on screen.
+    new IntersectionObserver(([e]) => { const was = seen; seen = e.isIntersecting; if (seen && !was) requestAnimationFrame(frame) }).observe(globe)
+    paint(); front() // the guard holds before the sphere first turns, too
+
+    // A drag turns the sphere a quarter degree a pixel. Moves only change the angle; the frame paints,
+    // so a burst of pointer events costs one paint. The fling speed is the average of the last 80 ms.
+    let lt = 0, trail: [number, number, number][] = []
+    globe.addEventListener('pointerdown', (e) => {
+      if (e.button) return
+      held = touched = true; moved = false; sx = lx = e.clientX; sy = ly = e.clientY; vx = vy = 0; goal = null; trail = []
+      if (!seen) requestAnimationFrame(frame)
+    })
+    addEventListener('pointermove', (e) => {
+      if (!held) return
+      if (!moved) {
+        if (Math.hypot(e.clientX - sx, e.clientY - sy) <= 6) return
+        // Start from here, so the 6 px dead zone does not land as a jump.
+        moved = true; lx = e.clientX; ly = e.clientY; hover = -1
+        globe.setPointerCapture(e.pointerId); globe.classList.add('held')
+      }
+      const dx = e.clientX - lx, dy = e.clientY - ly
+      ay += dx * 0.25; ax = Math.max(-60, Math.min(60, ax - dy * 0.25))
+      lx = e.clientX; ly = e.clientY
+      lt = e.timeStamp; trail.push([lt, dx, dy]); while (trail.length && lt - trail[0][0] > 80) trail.shift()
+    }, { passive: true })
+    globe.addEventListener('dragstart', (e) => e.preventDefault()) // a link or image would drag away
+    const up = (e: PointerEvent) => {
+      if (!held) return
+      held = false; globe.classList.remove('held')
+      // A pause before letting go means no fling.
+      const span = trail.length > 1 ? lt - trail[0][0] : 0
+      if (moved && span > 0 && e.timeStamp - lt < 60) {
+        const [dx, dy] = trail.slice(1).reduce((a, [, x, y]) => [a[0] + x, a[1] + y], [0, 0])
+        vy = Math.max(-1.2, Math.min(1.2, (dx * 0.25) / span)); vx = Math.max(-1.2, Math.min(1.2, (-dy * 0.25) / span))
+      }
+      off.fill(false); tiles.forEach((t) => (t.style.pointerEvents = ''))
+      setTimeout(() => (moved = false)) // after the click this release may send, so a later Enter still opens a cover
+    }
+    addEventListener('pointerup', up); addEventListener('pointercancel', up)
+
+    // The viewer: Previous, Next and the arrow keys step through the weeks; Escape or Close shuts it
+    // and the focus goes back to the cover. As on /one-offs, the cover grows out of its place on the
+    // sphere in the token's time and flies back into it on the way out (phase 2, Thomas).
+    const big = dlg.querySelector<HTMLImageElement>('.v-img')!
+    const top = dlg.querySelector<HTMLElement>('.v-top')!, cap = dlg.querySelector<HTMLElement>('.v-cap')!
+    const EASE = 'cubic-bezier(0.22, 1, 0.36, 1)'
+    const vt = () => { const v = getComputedStyle(document.documentElement).getPropertyValue('--vt').trim(); return parseFloat(v) * (v.endsWith('ms') ? 1 : 1000) || 300 } // the build writes 300ms as .3s
+    const away = (from: DOMRect, to: DOMRect) => `translate(${to.left - from.left}px, ${to.top - from.top}px) scale(${to.width / from.width})`
+    const rect = (i: number) => tiles[i].querySelector('img')!.getBoundingClientRect()
+    let cur = 0, busy = false
+    const show = (i: number) => {
+      cur = (i + tiles.length) % tiles.length
+      const a = tiles[cur], im = a.querySelector('img')!
+      big.removeAttribute('srcset')
+      big.style.backgroundImage = `url("${im.currentSrc || im.src}")`
+      big.sizes = '540px'; big.srcset = a.dataset.srcset!; big.src = a.href; big.alt = im.alt
+      dlg.querySelector('.v-i')!.textContent = String(cur + 1).padStart(2, '0')
+      dlg.querySelector('.v-cap .n')!.textContent = a.dataset.n!
+    }
+    tiles.forEach((a, i) => {
+      a.addEventListener('click', (e) => {
+        if (moved) { e.preventDefault(); moved = false; return } // the end of a drag, not a press
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return // a new tab gets the file
+        e.preventDefault(); open(i)
+      })
+      a.addEventListener('pointerenter', () => (hover = i))
+      a.addEventListener('pointerleave', () => (hover = -1))
+      a.addEventListener('focus', () => {
+        hover = i
+        const li = a.parentElement!.style
+        touched = true
+        goal = [Math.max(-60, Math.min(60, -parseFloat(li.getPropertyValue('--lat')))), -parseFloat(li.getPropertyValue('--lon'))]
+        if (!seen) requestAnimationFrame(frame)
+      })
+    })
+    const open = (i: number) => {
+      show(i); dlg.showModal(); dlg.focus()
+      if (!reduce) big.animate([{ transform: away(big.getBoundingClientRect(), rect(i)) }, { transform: 'none' }], { duration: vt(), easing: EASE })
+    }
+    const close = () => {
+      if (!dlg.open || busy) return
+      // The week on show may be round the back by now. The viewer hides the sphere, so it turns that
+      // cover to the front at once, and the cover flies home to a place the reader can see.
+      const st = tiles[cur].parentElement!.style
+      ax = Math.max(-60, Math.min(60, -parseFloat(st.getPropertyValue('--lat')))); ay = -parseFloat(st.getPropertyValue('--lon'))
+      vx = vy = 0; goal = null; touched = true; paint(); front()
+      if (reduce) return dlg.close()
+      busy = true
+      const g = getComputedStyle(document.documentElement).getPropertyValue('--paper').trim()
+      const go = big.animate([{ transform: 'none' }, { transform: away(big.getBoundingClientRect(), rect(cur)) }], { duration: vt(), easing: EASE, fill: 'forwards' })
+      dlg.animate([{ backgroundColor: g }, { backgroundColor: `${g}00` }], { duration: vt(), easing: EASE, fill: 'forwards' })
+      for (const el of [top, cap]) el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, fill: 'forwards' })
+      go.finished.then(() => { dlg.close(); dlg.getAnimations({ subtree: true }).forEach((x) => x.cancel()); busy = false })
+    }
+    dlg.addEventListener('cancel', (e) => { e.preventDefault(); close() }) // Escape
+    dlg.addEventListener('click', (e) => {
+      const b = (e.target as Element).closest('button')
+      if (b?.dataset.go) show(cur + Number(b.dataset.go))
+      else if (b?.hasAttribute('data-close') || e.target === dlg.querySelector('.v-stage')) close()
+    })
+    dlg.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight') show(cur + 1)
+      if (e.key === 'ArrowLeft') show(cur - 1)
+    })
+    tiles.forEach((a) => a.addEventListener('blur', () => (hover = -1)))
+    dlg.addEventListener('close', () => tiles[cur].focus({ preventScroll: true }))
+  }
+</script>

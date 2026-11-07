@@ -1,0 +1,1092 @@
+/* takramerdesigns.com, v3. Ported from redesign-v3/lab/lab.css, where each number was measured
+   (research/20). Tokens: synthesis/03 and 07; copy: synthesis/10-copy-v3.md. */
+
+@font-face { font-family: "Endless"; src: url(/fonts/Endless-Regular.woff2) format("woff2"); font-weight: 400; font-display: block; }
+@font-face { font-family: "Geist"; src: url(/fonts/Geist-Regular.woff2) format("woff2"); font-weight: 400; font-display: block; }
+@font-face { font-family: "Geist"; src: url(/fonts/Geist-Medium.woff2) format("woff2"); font-weight: 500 600; font-display: block; }
+/* Only the glyphs it draws: digits, the fact keys, "Fig." and "Error" (research/20, section 10).
+   A new word set in it needs a new cut: public/fonts, see the site README. */
+@font-face { font-family: "Geist Mono"; src: url(/fonts/GeistMono-Mini.woff2) format("woff2"); font-weight: 400; font-display: block; }
+/* The Square cut: every full stop is a small square, like the anchor points on a mark (07 section 3). */
+@font-face { font-family: "Geist Serif"; src: url(/fonts/GeistSerif-Square.woff2) format("woff2"); font-weight: 400; font-display: block; }
+
+:root {
+  --paper: #F6F6F3; --stone: #EEECE7; --ink: #141414; --ink2: #504E4A; --ink3: #6D6B67; --orange: #EF5714;
+  --ground: var(--paper);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --m: 56px; --g: 16px;
+  /* The motion token: the grow between pages, the cover row's settle and the phone menu (Thomas,
+     1 November: 300 ms on desktop, 350 on a phone). */
+  --vt: 300ms;
+  /* Endless covers plain ASCII only (no curly quotes, dashes or accents; its own apostrophe is a
+     drawn wedge, so Endless lines keep the straight key). Geist, close in shape, fills any gap. */
+  --display: "Endless", "Geist", Arial, sans-serif;
+  --sans: "Geist", "Helvetica Neue", Arial, sans-serif;
+  --serif: "Geist Serif", Georgia, serif;
+  --mono: "Geist Mono", ui-monospace, Menlo, monospace;
+  /* Type, measured from the font files (research/21). Endless is drawn tight for display: from 40 px
+     up it takes 0.01 em, and below 40 px it opens by 0.03 px for each px smaller, which matches the
+     fit Vercel gives Geist at the same sizes. */
+  --tr-endless: calc(0.01em + max(0px, (40px - 1em) * 0.03));
+  /* About 66 characters a line in Geist or Geist Serif, which both average 0.47 em a character. */
+  --measure: 31em;
+}
+@media (min-width: 1920px) { :root { --m: 72px; --g: 24px; } }
+@media (max-width: 1279px) { :root { --m: 40px; } }
+@media (max-width: 899px) { :root { --m: 32px; --vt: 350ms; } }
+@media (max-width: 599px) { :root { --m: 16px; } }
+
+/* No font-smoothing override: it changed no pixel here, and on a Mac set to smooth fonts it would thin
+   dark text for the readers who chose heavier strokes. No faked weights or slants either. */
+html { background-color: var(--ground); color: var(--ink); font-kerning: normal; font-synthesis: none; text-size-adjust: 100%; scroll-padding-top: 88px; transition: background-color 600ms var(--ease); }
+/* 18 on 28: Geist's x-height is tall (0.53 em), and a 66-character line wants about 1.55 (research/21). */
+body { margin: 0; font: 400 1.125rem/1.556 var(--sans); overflow-wrap: break-word; }
+h1, h2, h3, p, ul, ol, dl, dd, figure { margin: 0; }
+/* The longhands: the text-wrap shorthand also resets wrapping, which undid nowrap inside .sr. */
+h1, h2, h3 { font-weight: 400; text-wrap-style: balance; }
+p, li, dd, figcaption { text-wrap-style: pretty; }
+ul, ol { list-style: none; padding: 0; }
+a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 0.22em; }
+img, svg { display: block; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+main:focus { outline: none; }
+/* The cover's cards slide past the right edge as the lead grows. main clips them at the window's
+   edge so no page scrolls sideways; clip, unlike hidden, keeps the cover's sticky working. */
+main { overflow-x: clip; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.skip { position: absolute; z-index: 20; left: var(--m); top: 10px; padding: 8px 12px; background: var(--ink); color: var(--paper); text-decoration: none; transform: translateY(-300%); }
+.skip:focus { transform: none; }
+.w { width: min(100% - 2 * var(--m), 1776px); margin-inline: auto; }
+/* Text under 24 px is ink or ink-2 (APCA Lc 77 to 100); ink-3 (Lc 65 on stone) is for large type only. */
+.num { font-family: var(--mono); font-size: 0.8125rem; line-height: 1.25rem; color: var(--ink2); font-variant-numeric: tabular-nums; }
+
+/* Links outside running text: a 1 px rule draws in from the left in 240 ms and leaves to the right
+   (07 5.9). Links inside running text keep a plain underline, so color is never the only cue. */
+.list a, .bar ul a, .bar .nav-l, .map a, .rule, .mail .addr, a.up span, .v-nav button span, .view span {
+  text-decoration: none;
+  background: linear-gradient(currentColor, currentColor) no-repeat 100% 100% / 0 1px;
+  transition: background-size 240ms var(--ease);
+}
+.list a:hover, .bar ul a:hover, .bar .nav-l[aria-current], .bar .has-sub:is(:hover, :focus-within) .nav-l, .map a:hover, .rule:hover, .mail:hover .addr, .big-mail:hover, .big-mail:focus-visible, a.up:hover span, .v-nav button:hover span, .view:hover span { background-position: 0 100%; background-size: 100% 1px; }
+.read { margin-top: 32px; font-size: 1.125rem; }
+
+/* ---- The bar --------------------------------------------------------------------------------- */
+/* It slides away as the reader scrolls down and returns on the way up or when focus enters it (07
+   5.8); the page keeps its height free for any scrolled-to target (scroll-padding-top). */
+.bar {
+  position: sticky; top: 0; z-index: 5; height: 64px; display: flex; align-items: center; justify-content: space-between;
+  padding-inline: max(var(--m), (100% - 1776px) / 2); background-color: var(--ground); view-transition-name: tkd-bar;
+  transition: background-color 600ms var(--ease), transform 240ms var(--ease);
+}
+.bar-away .bar { transform: translateY(-100%); }
+.bar .name { display: block; padding: 12px 0; }
+.bar .name svg { height: 20px; width: auto; aspect-ratio: 675 / 227.5; }
+.bar .menu { display: none; }
+.bar ul { display: flex; gap: 32px; font-size: 1rem; line-height: 1.5rem; }
+.bar ul a { display: inline-block; padding-bottom: 2px; }
+.bar ul a[aria-current] { background-position: 0 100%; background-size: 100% 1px; }
+.bar .nav-l { display: inline-block; padding: 0 0 2px; border: 0; background-color: transparent; color: inherit; font: inherit; letter-spacing: inherit; cursor: pointer; }
+/* Work's two smaller pages drop down under it on a hover or a focus, on a sheet of the bar's ground
+   (Thomas, 1 November). The links stay in the tab order, so a Tab past Work opens the sheet. */
+.bar .has-sub { position: relative; }
+.bar .sub { position: absolute; top: 100%; left: -17px; display: block; padding: 10px 16px 12px; white-space: nowrap; background-color: var(--ground); border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent); opacity: 0; translate: 0 -4px; pointer-events: none; transition: opacity 160ms var(--ease), translate 160ms var(--ease); }
+.bar .sub li + li { margin-top: 4px; }
+.bar .has-sub:is(:hover, :focus-within, .linger, .open):not(.shut) .sub { opacity: 1; translate: 0 0; pointer-events: auto; }
+
+/* The point: the one orange mark, standing in for the full stop (07 section 3). */
+/* It sits where Endless sets its own full stop, 0.033 em from the letter. It is 1.2 times the stop's
+   width because orange on paper is APCA Lc 56 against ink's 100, so it needs more area to weigh the same. */
+.point { display: inline-block; width: 0.146em; height: 0.146em; background: var(--orange); margin-left: 0.033em; view-transition-name: tkd-point; }
+.nw { white-space: nowrap; } /* the last word and the point travel together: a full stop never starts a line */
+
+/* Images uncover from the bottom edge while settling from 104% to 100%, 600 ms (07 rule 3). The
+   frame hides its overflow; the mover slides up while the counter holds the image still. */
+.frame { display: block; position: relative; overflow: clip; background: var(--stone); }
+.mover, .counter { position: absolute; inset: 0; display: block; }
+.mover { overflow: clip; }
+.frame img { width: 100%; height: 100%; object-fit: cover; }
+/* A clip plays over its still and shows once its first frame runs; its button sits on the frame. */
+.frame video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 240ms var(--ease); }
+.frame video.on { opacity: 1; }
+.clip-btn { position: absolute; left: 12px; bottom: 12px; min-height: 44px; padding: 0 16px; background: var(--paper); color: var(--ink); border: 1px solid var(--ink); font-size: 0.875rem; cursor: pointer; }
+.clip-btn:hover { background: var(--ink); color: var(--paper); }
+.motion .uncover:not(.in) .clip-btn { opacity: 0; }
+/* A film (P3) waits on its poster for a press of its corner button (Thomas picked A over the whole
+   frame, 6 November). With no script or under reduced motion, html has no .motion and the button
+   goes, so the poster stands alone. */
+.frame.film { outline: 1px solid var(--ink); }
+html:not(.motion) .film .clip-btn { display: none; }
+.film .clip-btn > span::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 8px; background: var(--orange); vertical-align: 1px; }
+.film.playing .clip-btn > span::before { background: var(--ink); }
+/* A device mockup (a project's mock folder in src/assets) carries its own edge and shadow on a transparent ground: no
+   stone behind it while it loads, or the stone would show around the device for good. */
+.frame.bare, .shot .bare img { background: none; }
+.motion .uncover:not(.in) .mover { transform: translateY(100%); }
+.motion .uncover:not(.in) .counter { transform: translateY(-100%); }
+.motion .uncover:not(.in) img { transform: scale(1.04); }
+.uncover .mover, .uncover .counter, .uncover img { transition: transform 600ms var(--ease) calc(var(--i, 0) * 60ms); }
+.uncover.still .mover, .uncover.still .counter, .uncover.still img { transition: none; }
+
+/* ---- Titles ------------------------------------------------------------------------------------ */
+/* Display leading: Endless's ascenders and descenders span 0.908 em, so 0.91 em is the tightest that
+   never touches; it rounds up to the 4 px grid (88 px at 96, 52 at 56). */
+.title { font: 400 clamp(3.5rem, 6.7vw, 6rem)/0.92 var(--display); line-height: round(up, 0.91em, 4px); letter-spacing: var(--tr-endless); text-wrap: balance; }
+.title .t { display: inline-block; }
+.page-head { padding-top: 40px; }
+.intro-line { font-size: 1.125rem; line-height: 1.75rem; color: var(--ink2); margin-top: 16px; max-width: var(--measure); }
+/* Geist Serif's ascenders and descenders run longer than Geist's (0.99 em against 0.87), so it takes
+   more leading at the same size: 20 on 32. */
+.lede { font: 400 1.25rem/2rem var(--serif); color: var(--ink2); max-width: var(--measure); text-wrap: pretty; }
+
+/* ---- Home: the cover and its focus row ----------------------------------------------------------- */
+.stage { height: 260vh; container-type: inline-size; }
+.cover {
+  position: sticky; top: 0; height: 100vh; box-sizing: border-box; padding-top: 104px;
+  /* 24 fine columns nest in the 12: one wide column is two fine ones and a gutter. The row takes
+     its height from the window so it clears the fold on a 1366 x 768 laptop (07 4.1). */
+  --fcw: calc((100cqw - 23 * var(--g)) / 24);
+  /* 412: the row's top (328 at 768 tall) plus the 84 px caption. It read 400, 12 px short, so where
+     the height sets the row the captions ran 12 px past the fold. */
+  --fch: calc(((100vh - 412px) * 1.5 + var(--g)) / 10 - var(--g));
+  --fc: min(var(--fcw), var(--fch));
+  --u: calc(var(--fc) + var(--g));
+  --H: calc((10 * var(--u) - var(--g)) / 1.5);
+  --caph: 84px;
+}
+/* The cover H1 keeps 0.01 em at every size, and its size follows its column so each phrase holds
+   one line: the first measures 21.04 em with that tracking. On a 2x phone screen 0.01 em still leaves
+   round letters more than a pixel apart. */
+.role { font: 400 min(4rem, 100cqw / 21.3)/1 var(--display); line-height: round(up, 1em, 4px); letter-spacing: 0.01em; }
+.role > span { display: block; text-wrap: balance; } /* direct children only: a nested span made the point a block of its own */
+.role .l2 { color: var(--ink3); }
+.row { position: relative; margin-top: 40px; width: calc(24 * var(--u) - var(--g)); height: calc(var(--H) + var(--caph)); }
+/* Size by layout, place by transform: each card's box stays at the row's top left, so a hover never
+   moves a box's starting point and adds nothing to CLS; only its width changes (research/20, 1). */
+.row .card {
+  position: absolute; left: 0; top: 0; --n: 4; --o: 0; --dy: 0px;
+  --h: calc((var(--n) * var(--u) - var(--g)) / 1.5);
+  width: calc(var(--n) * var(--u) - var(--g));
+  transform: translate(calc(var(--o) * var(--u) + var(--dx, 0px)), calc(var(--H) - var(--h) + var(--dy)));
+  opacity: var(--op, 1);
+}
+.row .card > a { display: block; text-decoration: none; }
+.row .frame { aspect-ratio: 3 / 2; }
+/* Captions keep the width of a small card, so a resize never rewraps a line. The name is sized to that
+   width, as the phone H1 is to its column: the longest, Healthy Campus Week., measures 11.95 em with its
+   tracking at 15 px, so every name holds one line wherever 15 px allows, and wraps, balanced, in a
+   window too narrow or short for that. */
+.row .cap { position: absolute; left: 0; top: 0; width: calc(4 * var(--u) - var(--g)); transform: translateY(calc(var(--h) + 12px)); }
+.cap .n { display: inline-block; text-wrap-style: balance; font: 400 clamp(0.9375rem, (4 * var(--u) - var(--g)) / 12, 1.25rem)/1.2 var(--display); line-height: round(1.2em, 4px); letter-spacing: var(--tr-endless); }
+.cap .c { display: block; margin-top: 4px; font-size: 0.875rem; line-height: 1.25rem; color: var(--ink2); }
+/* The row shows focus by size and the title's underline (Thomas, 1 November: no ring); the phone
+   grid never resizes, so it keeps the ring. */
+@media (min-width: 900px) { .row .card > a:focus-visible { outline: none; } }
+.leadbar { position: absolute; left: 0; top: 0; opacity: 0; pointer-events: none; display: flex; gap: 24px; align-items: baseline; }
+.leadbar .n, .capbar .n { font: 400 2rem/2.25rem var(--display); letter-spacing: var(--tr-endless); }
+/* Beside or under an image the bar is measured from its capitals, not its line box, so the name's cap
+   height meets the image's top edge (Nydex) and sits exactly 20 px under it (Underline). */
+.capbar > * { text-box: trim-start cap alphabetic; }
+.leadbar .c, .capbar .c { font-size: 1.125rem; line-height: 1.75rem; color: var(--ink2); }
+/* Intro, before the script's first frame (site.js adds the class in <head>). */
+.intro .row .card:not(.in) .mover { transform: translateY(100%); }
+.intro .row .card:not(.in) .counter { transform: translateY(-100%); }
+.intro .row .card:not(.in) .cap, .intro .role .point { opacity: 0; }
+
+/* ---- Home: the other six projects (N1, reworked 4 November) ----------------------------------- */
+/* The cover shows four projects as pictures, so the six it leaves out come as an index set large:
+   name, role, year, no numbers (Thomas, 4 November). The pointer or focus on a row shows that
+   project in one frame to the right, uncovered from its bottom edge in 240 ms, and the other names
+   fall back to ink-3; with neither, the frame shows the first. The frame sits in its own column and
+   sticks under the bar, so it stays whole in view until the list scrolls past. Nothing moves. */
+.more { padding-block: 160px 120px; }
+.work-h { font: 400 clamp(2.5rem, 4.4vw, 4rem)/0.92 var(--display); line-height: round(up, 0.91em, 4px); letter-spacing: var(--tr-endless); }
+.ix-wrap { --u: calc((100% + var(--g)) / 24); display: grid; grid-template-columns: calc(14 * var(--u) - var(--g)) calc(9 * var(--u) - var(--g)); column-gap: calc(var(--u) + var(--g)); margin-top: 56px; }
+.ix a { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--g); align-items: baseline; padding-block: 14px; text-decoration: none; -webkit-tap-highlight-color: transparent; }
+.ix li:first-child a { padding-top: 0; }
+.ix .n { position: relative; display: block; font: 400 clamp(2rem, 3.4vw, 3.25rem)/1 var(--display); line-height: round(up, 1.04em, 4px); letter-spacing: var(--tr-endless); transition: color 240ms var(--ease); }
+.ix-role { display: block; margin-top: 6px; font-size: 1rem; line-height: 1.5rem; color: var(--ink2); }
+.ix-result { display: block; font-size: 1rem; line-height: 1.5rem; }
+.ix-year { font-size: 1rem; line-height: 1.5rem; color: var(--ink2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ix a:focus-visible { outline-offset: 6px; }
+.ix:has(a:is(:hover, :focus-visible)) a:not(:hover, :focus-visible) .n { color: var(--ink3); }
+/* The marker: a 4 px orange square before the name of the row in the frame. */
+.ix .n::before { content: ""; position: absolute; left: -12px; top: 50%; width: 4px; height: 4px; margin-top: -2px; background: var(--orange); opacity: 0; transition: opacity 240ms var(--ease); }
+.ix a:is(:hover, :focus-visible) .n::before { opacity: 1; }
+.ix-stick { position: sticky; top: 88px; display: grid; }
+.ix-pv { grid-area: 1 / 1; aspect-ratio: 3 / 2; opacity: 0; clip-path: inset(100% 0 0); transition: opacity 0s 240ms, clip-path 0s 240ms; }
+/* ponytail: one rule per row; the index holds six. Add a line if it grows. */
+.ix-wrap:has(li:nth-child(1) a:is(:hover, :focus-visible)) .ix-pv:nth-child(1),
+.ix-wrap:has(li:nth-child(2) a:is(:hover, :focus-visible)) .ix-pv:nth-child(2),
+.ix-wrap:has(li:nth-child(3) a:is(:hover, :focus-visible)) .ix-pv:nth-child(3),
+.ix-wrap:has(li:nth-child(4) a:is(:hover, :focus-visible)) .ix-pv:nth-child(4),
+.ix-wrap:has(li:nth-child(5) a:is(:hover, :focus-visible)) .ix-pv:nth-child(5),
+.ix-wrap:has(li:nth-child(6) a:is(:hover, :focus-visible)) .ix-pv:nth-child(6),
+.ix-wrap:not(:has(a:is(:hover, :focus-visible))) .ix-pv:first-child { z-index: 1; opacity: 1; clip-path: inset(0); transition: clip-path 240ms var(--ease); }
+.more .read { margin-top: 64px; }
+.grid { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); column-gap: var(--g); }
+.panels li > span:last-child, .shapes li > span:last-child { display: block; margin-top: 8px; font-size: 0.875rem; line-height: 1.25rem; color: var(--ink2); }
+.note { margin-top: 24px; font-size: 0.875rem; line-height: 1.25rem; color: var(--ink2); }
+
+/* ---- Home: about teaser, contact block, footer ------------------------------------------------- */
+.teaser { padding-block: 120px; }
+.teaser p:first-child { font: 400 clamp(1.625rem, 2.6vw, 2.25rem)/1.35 var(--serif); line-height: round(up, 1.3em, 4px); max-width: 26em; text-wrap: pretty; }
+/* ---- The contact block, above the footer (reworked 1 November) ---------------------------------- */
+/* The headline on the left half; the line and the address on the right, their capitals level with
+   the headline's. On a phone they stack. */
+.ask { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); column-gap: var(--g); align-items: start; padding-block: 160px; }
+.ask-h { grid-column: 1 / 12; font: 400 clamp(3.5rem, 6.7vw, 6rem)/0.92 var(--display); line-height: round(up, 0.91em, 4px); letter-spacing: var(--tr-endless); text-box: trim-start cap alphabetic; }
+.ask-body { grid-column: 13 / 25; container-type: inline-size; }
+.ask-line { max-width: var(--measure); font-size: 1.25rem; line-height: 2rem; text-box: trim-start cap alphabetic; }
+/* The address is the link: it opens the reader's mail app with the address and a subject filled
+   in. It takes its size from its box, so it holds one line at any width: with its tracking the
+   address measures 12.6 em at 25 px (research/21, section 9). */
+/* The address must hold one line, so its size comes from its box (21 section 9): 13.29em untracked plus
+   1%, 25 letters, and below 40px --tr-endless adds 1.2px - 0.02em to each. The smaller of the two
+   sums wins. */
+.mail { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 48px; padding-block: 22px 20px; text-decoration: none; -webkit-tap-highlight-color: transparent; }
+.mail .addr { font: 400 min(2.5rem, (100cqw - 4.125rem) / 12.92, (100cqw - 2.25rem) / 13.67)/1.2 var(--display); line-height: round(up, 1.2em, 4px); letter-spacing: var(--tr-endless); }
+.mail .arr { flex: none; width: 20px; height: 14px; transition: transform 240ms var(--ease); }
+.mail:hover .arr { transform: translateX(4px); }
+/* The profiles under the address: name, handle, arrow, two to a row (Thomas, 2 November). */
+.ask-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px var(--g); margin: 32px 0 0; padding: 0; list-style: none; }
+.ask-links a { display: grid; grid-template-columns: 1fr auto; align-items: baseline; column-gap: 8px; text-decoration: none; }
+.ask-n { font-size: 1.125rem; line-height: 1.75rem; }
+.ask-handle { grid-row: 2; font-size: 0.875rem; line-height: 1.25rem; color: var(--ink2); }
+.ask-links .arr { grid-row: 1; grid-column: 2; width: 12px; height: 12px; transition: transform 240ms var(--ease); }
+.ask-links a:hover .ask-n { text-decoration: underline; text-underline-offset: 0.2em; text-decoration-thickness: 1px; }
+.legal { color: inherit; text-underline-offset: 0.2em; text-decoration-thickness: 1px; }
+
+/* ---- The footer (reworked 1 November; rounds 4 and 5, 4 November) ---------------------------------- */
+/* On the stone ground. The mark sits seven columns wide at the left with a 400% loupe for a fine
+   pointer (round 5); the name, Pages and Profiles run in one row from column 10. */
+.foot { padding-block: 72px 40px; background: var(--stone); }
+.foot-grid { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); column-gap: var(--g); row-gap: 72px; align-items: start; }
+.foot-mark svg { display: block; width: 100%; height: auto; overflow: visible; }
+.foot-mark .ink { fill: var(--ink); stroke: var(--ink); stroke-width: 0; vector-effect: non-scaling-stroke; transition: fill-opacity 600ms var(--ease) 240ms, stroke-width 0s 840ms; }
+.foot-mark .anchors { fill: none; stroke: var(--orange); stroke-width: 2px; stroke-linecap: square; vector-effect: non-scaling-stroke; opacity: 0; transition: opacity 360ms var(--ease) 480ms; }
+.motion .foot-mark:not(.in) .ink { fill-opacity: 0; stroke-width: 1px; transition: none; }
+.motion .foot-mark:not(.in) .anchors { opacity: 1; transition: none; }
+.foot-mark { grid-column: 1 / 8; grid-row: 1 / 3; position: relative; }
+.loupe { position: absolute; top: 0; left: 0; width: 176px; height: 176px; overflow: hidden; border: 1px solid var(--ink); background: var(--paper); pointer-events: none; opacity: 0; transition: opacity 200ms var(--ease); }
+.foot-mark .loupe svg { position: absolute; top: 0; left: 0; width: 400%; max-width: none; }
+.foot-mark .loupe .ink { fill: none; stroke: var(--ink); stroke-width: 1px; transition: none; }
+.foot-mark .loupe .anchors { opacity: 1; stroke-width: 5px; transition: none; }
+@media (hover: hover) and (pointer: fine) {
+  .foot-mark { cursor: crosshair; }
+  .foot-mark:hover .loupe { opacity: 1; }
+}
+.sign { grid-column: 10 / 16; grid-row: 1; }
+.foot-pages { grid-column: 17 / 21; grid-row: 1; }
+.foot-else { grid-column: 21 / 25; grid-row: 1; }
+.foot-base { grid-column: 10 / 25; grid-row: 2; align-self: end; }
+.sign-n { display: block; font: 400 2rem/2.25rem var(--display); letter-spacing: var(--tr-endless); text-box: trim-start cap alphabetic; }
+.sign-r { display: block; margin-top: 12px; max-width: 20em; font-size: 1rem; line-height: 1.5rem; color: var(--ink2); }
+/* A small label over each list, its capitals level with the name's. */
+.label { font-size: 0.875rem; line-height: 1.25rem; color: var(--ink2); text-box: trim-start cap alphabetic; }
+.list { margin-top: 14px; }
+.list a { display: inline-flex; align-items: center; gap: 8px; padding-block: 4px 2px; font-size: 1rem; line-height: 1.5rem; }
+.arr.out, .arr.down { width: 10px; height: 10px; }
+.foot-base .copyright { margin-top: 8px; }
+.verse { font: 400 1rem/1.5rem var(--serif); color: var(--ink2); }
+.copyright { font-size: 0.875rem; line-height: 1.25rem; color: var(--ink2); }
+.foot .clock { margin-top: 8px; font-size: 0.875rem; line-height: 1.25rem; color: var(--ink2); font-variant-numeric: tabular-nums; }
+/* The 404's large links. */
+.map { display: flex; flex-wrap: wrap; gap: 0 48px; font: 400 clamp(2.75rem, 5.6vw, 5rem)/1.1 var(--display); line-height: round(up, 1.1em, 4px); letter-spacing: var(--tr-endless); }
+
+/* ---- Contact (/contact, reworked 1 November, renamed 4 November) ------------------------------- */
+/* Two lines at one size: the title, then the address, which takes its size from the column so it
+   holds one line, in ink-3 until the pointer or focus reaches it. */
+.contact { padding-bottom: 160px; }
+.contact-head { padding-top: 40px; container-type: inline-size; }
+.big { font: 400 min(clamp(3.5rem, 6.7vw, 6rem), (100cqw - 1.875rem) / 12.92, 100cqw / 13.67)/0.92 var(--display); line-height: round(up, 0.91em, 4px); letter-spacing: var(--tr-endless); }
+.big-mail { color: var(--ink3); text-decoration: none; transition: color 240ms var(--ease); }
+.big-mail:hover, .big-mail:focus-visible { color: var(--ink); }
+/* Ink-3 holds to 24 px and up (21 section 8); the address drops under 24 px in a column narrower than 340 px. */
+@container (max-width: 339px) { .big-mail { color: var(--ink2); } }
+/* No rules between the parts (Thomas, 4 November): space and the grid divide them. Each part's
+   label takes the first 8 of 24 columns, level with its first line; its content takes the other 16,
+   and the handles start on column 17, so every column edge lines up down the page. */
+.contact-info { display: grid; gap: 120px; margin-top: 144px; }
+.contact-info section { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); column-gap: var(--g); align-items: baseline; }
+.contact-info section > .label { grid-column: 1 / 9; grid-row: 1; text-box: none; }
+.contact-info section > :not(.label) { grid-column: 9 / 25; }
+.contact-lead { max-width: 22em; font: 400 clamp(1.5rem, 2.2vw, 2rem)/1.35 var(--serif); line-height: round(up, 1.3em, 4px); text-wrap-style: balance; }
+.contact-more { margin-top: 16px; max-width: var(--measure); color: var(--ink2); }
+.profiles a { display: grid; grid-template-columns: repeat(16, minmax(0, 1fr)); column-gap: var(--g); align-items: baseline; padding-block: 10px; text-decoration: none; -webkit-tap-highlight-color: transparent; }
+.profiles li:first-child a { padding-top: 0; }
+.profiles .pn { grid-column: 1 / 9; justify-self: start; font: 400 1.75rem/2.25rem var(--display); letter-spacing: var(--tr-endless); background: linear-gradient(currentColor, currentColor) no-repeat 100% 100% / 0 1px; transition: background-size 240ms var(--ease); }
+.profiles a:hover .pn, .profiles a:focus-visible .pn { background-position: 0 100%; background-size: 100% 1px; }
+.profiles .ph { grid-column: 9 / 16; font-size: 1rem; line-height: 1.5rem; color: var(--ink2); }
+.profiles .arr { grid-column: 16 / 17; justify-self: end; align-self: center; transition: transform 240ms var(--ease); }
+.profiles a:hover .arr.down { transform: translateY(2px); }
+.profiles.cv { margin-top: 40px; }
+
+/* ---- /projects: four equal columns and the filters ---------------------------------------------- */
+.filters { display: flex; flex-wrap: wrap; gap: 4px 28px; margin-top: 40px; }
+.filters button { min-height: 44px; padding: 0; border: 0; background: none; cursor: pointer; font-size: 1.125rem; color: var(--ink2); }
+.filters button span:first-child { display: inline-block; padding-bottom: 2px; background: linear-gradient(currentColor, currentColor) no-repeat 100% 100% / 0 1px; transition: background-size 240ms var(--ease); }
+.filters button:hover span:first-child, .filters [aria-pressed="true"] span:first-child { background-position: 0 100%; background-size: 100% 1px; }
+.filters [aria-pressed="true"] { color: var(--ink); }
+.filters .num { margin-left: 6px; }
+.wall { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 40px var(--g); margin-block: 32px 160px; }
+.wall > li { view-transition-class: wall; }
+html[data-filter="brand"] .wall li:not([data-tags~="brand"]),
+html[data-filter="product"] .wall li:not([data-tags~="product"]),
+html[data-filter="engineering"] .wall li:not([data-tags~="engineering"]) { display: none; }
+.wall .card { display: block; text-decoration: none; -webkit-tap-highlight-color: transparent; }
+.wall img { width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover; background: var(--stone); }
+.wall img { transition: transform 120ms var(--ease); }
+.wall .cap { display: flex; gap: 10px; align-items: baseline; margin-top: 12px; }
+.wall .n, .mk-cap .n, .pc .n { display: inline-block; font: 400 clamp(1.125rem, 1.7vw, 1.625rem)/1.15 var(--display); line-height: round(1.15em, 4px); letter-spacing: var(--tr-endless); }
+.card:hover .n, .card > a:hover .n, .card:focus-visible .n, .card > a:focus-visible .n { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 5px; }
+/* A press answers inside one perceptual cycle, about 100 ms (Card, Moran and Newell). */
+.wall .card:active img { transform: scale(0.985); }
+
+/* ---- Case page ----------------------------------------------------------------------------------- */
+/* The number and the back arrow sit above the title (Thomas, 1 November). The arrow's target is
+   44 px; negative margins keep the row 20 px tall and the arrow's tip on the margin line. */
+.case { container-type: inline-size; }
+.case-head { margin-top: 32px; }
+.crumb { display: flex; align-items: center; gap: 4px; height: 20px; margin-bottom: 16px; }
+.back { display: grid; place-items: center; width: 44px; height: 44px; margin: -12px 0 -12px -12px; -webkit-tap-highlight-color: transparent; }
+.back svg { width: 20px; height: 14px; }
+/* The hero keeps to the window's height and at most 17 of 24 columns; the column it leaves holds
+   the claim and the facts, so the first screen answers the page (research/20, section 16). The
+   hero's track rounds up to whole columns, so the facts start on a column line at any height. The
+   column keeps at least 320 px under 1400: narrower, the claim and facts ran far below the hero. */
+.case-top { --u: calc((100cqw + var(--g)) / 24); --hero: min(17 * var(--u) - var(--g), (100vh - 292px) * 1.5); margin-top: 32px; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-columns: calc(round(up, var(--hero) + var(--g), var(--u)) - var(--g)) minmax(0, 1fr); column-gap: calc(var(--u) + var(--g)); align-items: start; }
+.hero img { width: var(--hero); height: auto; aspect-ratio: 3 / 2; object-fit: cover; background: var(--stone) center / cover no-repeat; }
+/* The claim's capitals start at the hero's top edge, not 8 px under it as the line box put them. At
+   28 px Geist tightens 0.02 em, about where the font's makers and Inter's optical curve set it. */
+.case .claim { font-size: 1.75rem; line-height: 2.25rem; letter-spacing: -0.02em; max-width: 900px; text-wrap: pretty; text-box: trim-start cap alphabetic; }
+.case .lede { margin-top: 20px; font-size: 1.125rem; line-height: 1.75rem; }
+/* Keys and values share a baseline whatever their sizes. */
+.facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: baseline; gap: 10px 24px; margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--ink); }
+.facts dt { font-family: var(--mono); font-size: 0.8125rem; line-height: 1.5rem; color: var(--ink2); }
+.facts dd { font-size: 1rem; line-height: 1.5rem; }
+.deck-lede { margin-top: 32px; max-width: 900px; }
+.deck-lede + .gallery { margin-top: 64px; }
+.visit { display: grid; gap: 8px; justify-items: start; margin-top: 24px; font-size: 1rem; line-height: 1.5rem; }
+@media (max-width: 1399px) { .case-top { --hero: min(17 * var(--u) - var(--g), (100vh - 292px) * 1.5, 100cqw - 2 * var(--u) - var(--g) - 320px); } }
+/* Tablet widths: the hero takes the full width and the claim and lede sit beside the facts below it. */
+@media (min-width: 900px) and (max-width: 1199px) {
+  .case-top { display: block; }
+  .hero img { width: 100%; }
+  .about { display: grid; grid-template-columns: 14fr 9fr; column-gap: calc(100cqw / 24); align-items: start; margin-top: 40px; }
+  .about > :not(.facts, .visit) { grid-column: 1; }
+  .about .facts, .about .visit { grid-column: 2; }
+  .about .facts { grid-row: 1 / span 3; margin-top: 0; }
+  .about .visit { grid-row: 4; }
+}
+.proof { margin-top: 120px; }
+/* C1 (round 7, Thomas picked a): the problem and what changed, two columns under the hero, each 11 of
+   24 wide. */
+.why { margin-top: 96px; display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); column-gap: var(--g); }
+.why h2 { font: 400 0.8125rem/1.25rem var(--mono); color: var(--ink2); }
+.why p { margin-top: 12px; max-width: var(--measure); font-size: 1.25rem; line-height: 2rem; }
+.why-p, .why-i { padding-top: 20px; border-top: 1px solid var(--ink); }
+.why-p { grid-column: 1 / 12; } .why-i { grid-column: 13 / 24; }
+@media (max-width: 899px) {
+  .why { display: block; margin-top: 64px; }
+  .why > div + div { margin-top: 40px; }
+}
+.figures { display: flex; flex-wrap: wrap; gap: 40px 96px; }
+.figures .v { display: block; font: 400 clamp(4rem, 7vw, 7rem)/1 var(--mono); line-height: round(up, 1em, 4px); letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.figures .c { display: block; margin-top: 12px; max-width: 18em; font-size: 1rem; line-height: 1.5rem; color: var(--ink2); }
+.outcomes { margin-top: 72px; max-width: 36em; border-top: 1px solid var(--ink); }
+.outcomes li { padding: 16px 0; font-size: 1.25rem; line-height: 2rem; border-bottom: 1px solid color-mix(in srgb, var(--ink) 18%, transparent); }
+.credit { margin-top: 32px; max-width: 34em; font-size: 1rem; line-height: 1.5rem; color: var(--ink2); }
+/* The gallery runs the full content width (N19): a wide shot on its own, then two side by side on 12
+   columns each. A pair of halves shares one box, the taller shot's shape (--box), so the captions sit
+   on one line and the wider shot centres in it. */
+.gallery { margin-top: 120px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 96px var(--g); align-items: start; }
+.plate { grid-column: 1 / -1; min-width: 0; }
+.plate.half { grid-column: auto; }
+.plate figcaption { display: flex; gap: 12px; align-items: baseline; margin-top: 14px; font-size: 1rem; line-height: 1.5rem; }
+.plate figcaption .num { white-space: nowrap; }
+/* One plate holds one image or a row of them; each grows by its own ratio from no width, so a row
+   comes out one height whatever the shapes. A single image fills the width but never runs taller
+   than the window, so on a wide screen a desktop mockup still shows whole (round 10). */
+.shots { display: flex; gap: var(--g); align-items: flex-start; }
+.shot { flex: calc(var(--r) * var(--s, 1)) 1 0; min-width: 0; }
+/* A phone at its real size beside a MacBook or a display: both stand on one line, and --dy moves each
+   so the feet of the devices meet (their shadows differ). */
+.shots.scaled { align-items: flex-end; }
+.shots.scaled.scaled .frame { translate: 0 calc(var(--dy) * 100%); } /* doubled to outrank .shots.two .frame below */
+.shot img { width: 100%; height: auto; background: var(--stone); }
+.plate.full .shots.one { justify-content: center; }
+.plate.full .shots.one .shot { flex: 0 1 auto; width: min(100%, (100svh - 160px) * var(--r)); }
+.half .shots { aspect-ratio: var(--box); align-items: center; }
+/* N17: a page and a phone side by side centre on the devices, not on their canvases. --t and --b are
+   the empty share above and below each device, measured from the file at build ([slug].astro). */
+.shots.two .frame { translate: 0 calc((var(--b) - var(--t)) * 50%); }
+/* N21: a sheet sets its crops at one scale, each growing by its width on the page and never past it,
+   so a row of cards shows at full size and a wider row shrinks as one. A plain 1px ink rule for a frame. */
+.shots.sheet .shot { flex: var(--w) 1 0; max-width: calc(var(--w) * 1px); }
+.frame.rule { outline: 1px solid var(--ink); }
+.shot > .frame + span { display: block; margin-top: 8px; padding-inline-start: calc(var(--l) * 100%); font-size: 0.875rem; line-height: 1.25rem; color: var(--ink2); }
+
+/* ---- About, 404 ------------------------------------------------------------------------------ */
+.about-head { padding-top: 40px; align-items: end; }
+.portrait { grid-column: 1 / 7; }
+.portrait .frame { aspect-ratio: 4 / 5; }
+.about-head > div { grid-column: 8 / 25; }
+/* Its last baseline sits on the portrait's bottom edge. */
+.about-head .lede { margin-top: 32px; color: var(--ink); font-size: clamp(1.375rem, 2vw, 1.75rem); line-height: 1.45; line-height: round(up, 1.4em, 4px); max-width: var(--measure); text-box: trim-end cap alphabetic; }
+/* I13: the reading size slider under the lede. */
+.rs { margin-top: 32px; font-size: 0.875rem; line-height: 1.25rem; color: var(--ink2); }
+.rs-b { display: flex; align-items: center; gap: 16px; max-width: 28rem; }
+.rs-b input { flex: 1; accent-color: var(--ink); }
+.rs-b output { min-width: 3.5em; color: var(--ink); font-variant-numeric: tabular-nums; }
+.prose { padding-top: 120px; }
+.prose section { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); column-gap: var(--g); padding-block: 48px; border-top: 1px solid var(--ink); }
+.prose section > h2 { grid-column: 1 / 7; font: 400 2rem/2.25rem var(--display); letter-spacing: var(--tr-endless); }
+.prose section > :not(h2) { grid-column: 8 / 22; }
+.prose h3 { font: 400 1.5rem/1.75rem var(--display); letter-spacing: var(--tr-endless); margin-top: 32px; }
+.prose h3:first-of-type { margin-top: 0; }
+/* A heading binds to the text under it: 32 px above it, 12 below, and 16 between paragraphs. */
+.prose p + p { margin-top: 16px; }
+.prose h3 + p { margin-top: 12px; }
+.prose p { max-width: var(--measure); }
+.prose .end { padding: 48px 0 0 calc((100% + var(--g)) * 7 / 24); border-top: 1px solid var(--ink); }
+.page-head .lede { margin-top: 24px; }
+/* About: the record as a timeline (N13; Record.astro). Columns: the years, one lane for each run of
+   dates that overlaps another, then the text. The axis and the ordered list share the rows through
+   subgrid, so a square sits on the first line of its entry and a run's line ends on the row where
+   it began. The orange square is the entry still running. */
+.tl { display: grid; grid-template-columns: 4rem repeat(var(--lanes), 1.5rem) minmax(0, 1fr); }
+.tl > .axis, .tl > ol { display: grid; grid-template: subgrid / subgrid; grid-area: 1 / 1 / -1 / -1; }
+.yr { grid-column: 1 / -1; padding-top: 0.5rem; border-top: 1px solid var(--ink); font: 400 1rem/1.5rem var(--mono); font-variant-numeric: tabular-nums; }
+.run { position: relative; justify-self: center; width: 1px; margin-block: 0.875rem 0.5rem; background: var(--ink); }
+.run::before { content: ""; position: absolute; top: -0.3125rem; left: -0.3125rem; width: 0.625rem; height: 0.625rem; background: var(--ink); }
+.run::after { content: ""; position: absolute; bottom: 0; left: -0.375rem; width: 0.75rem; height: 1px; background: var(--ink); }
+.run.pt { align-self: start; height: 0; }
+.run.pt::after { content: none; }
+.run.now::before { background: var(--orange); }
+.tl li { grid-column: -2 / -1; padding: 0 0 2rem 0.5rem; }
+.tl li b { display: block; font-weight: 500; line-height: 1.75rem; }
+.tl .when { display: block; margin-top: 2px; font-size: 1rem; line-height: 1.5rem; color: var(--ink2); }
+.tl li p { margin-top: 6px; color: var(--ink2); }
+.button { display: inline-flex; align-items: center; min-height: 44px; margin-top: 20px; padding: 0 20px; border: 1px solid var(--ink); text-decoration: none; transition: background-color 120ms, color 120ms; }
+.button:hover { background: var(--ink); color: var(--paper); }
+.nf { padding-block: 64px 120px; }
+.nf .num { display: block; margin-bottom: 20px; }
+.nf .lede { margin-top: 32px; }
+/* The 404 at 400% (N15): the drawing a designer sees on /logos, with one point pulled off its path.
+   Strokes and squares keep their size at any width (non-scaling), like the lens. */
+.nf-fig { margin-bottom: 56px; }
+.nf-plate { position: relative; aspect-ratio: 2.13; max-height: 50svh; width: 100%; background: var(--stone); }
+.nf-plate svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.nf-plate path { vector-effect: non-scaling-stroke; fill: none; stroke: var(--ink); stroke-linecap: square; }
+.nf-plate .ghost { fill: var(--ink); fill-opacity: 0.12; fill-rule: evenodd; stroke: none; }
+.nf-plate .line { stroke-width: 1px; }
+.nf-plate .pts { stroke-width: 6px; }
+.nf-plate .home { stroke-width: 10px; }
+.nf-plate .hole { stroke-width: 8px; stroke: var(--stone); }
+.nf-plate .lost { stroke-width: 10px; stroke: var(--orange); }
+.nf-plate .pct { position: absolute; top: 8px; right: 8px; font-size: 0.8125rem; line-height: 1.25rem; font-variant-numeric: tabular-nums; color: var(--ink2); }
+.nf-fig figcaption { margin-top: 12px; font-size: 0.875rem; line-height: 1.25rem; color: var(--ink2); }
+.nf-fig figcaption .num { display: inline; margin: 0 8px 0 0; }
+@media (max-width: 599px) { .nf-plate .pts { stroke-width: 4px; } .nf-plate .home { stroke-width: 7px; } .nf-plate .hole { stroke-width: 5px; } .nf-plate .lost { stroke-width: 8px; } }
+.nf .map { margin-top: 72px; }
+/* I14 (Thomas's pick, round 6: c then b). The plate builds itself the way the marks do: points, then
+   the outline, then the tint; one point never lands. Once the outline is done the reader can drag it
+   home or press it, and the numerals fill in ink. Reduced motion gets the built plate at once. */
+.nf-try { display: none; }
+.nf-plate.live ~ figcaption .nf-try { display: inline; }
+.nf-grab { position: absolute; left: 0; top: 0; width: 44px; height: 44px; margin: -22px 0 0 -22px; padding: 0; border: 0; background: none; cursor: grab; touch-action: none; }
+.nf-grab:active { cursor: grabbing; }
+.nf-grab:focus-visible { outline: 1px solid var(--orange); outline-offset: -10px; }
+.nf-plate.fixed .ghost { fill-opacity: 1; transition: fill-opacity 600ms var(--ease) 150ms; }
+.nf-plate.fixed .hole, .nf-plate.fixed .lost { opacity: 0; }
+html.still .nf-plate.fixed .ghost { transition: none; }
+.nf-plate .line { vector-effect: none; stroke-width: var(--upx, 1px); stroke-dasharray: 1; }
+.motion .nf-plate :is(.pts, .home, .hole, .lost) { animation: nf-pop 300ms var(--ease) 300ms both; }
+.motion .nf-plate .line { animation: nf-draw 1200ms cubic-bezier(0.65, 0, 0.35, 1) 700ms both; }
+.motion .nf-plate .ghost { animation: nf-tint 600ms var(--ease) 1900ms both; }
+.motion .nf-plate.fixed .ghost { animation: none; }
+@keyframes nf-pop { from { stroke-width: 0; } }
+@keyframes nf-draw { from { stroke-dashoffset: 1; } }
+@keyframes nf-tint { from { fill-opacity: 0; } }
+
+/* ---- Usage (N16): the token count and two week grids of sized squares, on Home and About ----------- */
+/* Each chart is the 7 by 53 week grid, a column a week, a row a day. The body runs to the right edge
+   (columns 8 to 24, not 8 to 22) so a square has room to read; the prose inside keeps its measure.
+   Phones show the last 26 weeks. The count takes its size from its column, so ten or eleven digits
+   never run past it. */
+.usage > .usage-body { grid-column: 8 / -1; }
+.usage-home { padding-top: 0; }
+.usage-body { container-type: inline-size; }
+.prose .usage-total { max-width: none; }
+.usage-total .v { display: block; font: 400 min(5rem, 100cqi / 8.4)/1 var(--mono); letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.usage-total .c { display: block; margin-top: 16px; font-size: 1rem; line-height: 1.5rem; color: var(--ink2); }
+.usage .note + .note { margin-top: 8px; }
+.heat { margin-top: 56px; }
+.usage .heat h3 { margin: 0; font: 500 1rem/1.5rem var(--sans); letter-spacing: 0; }
+.sq { margin-top: 16px; }
+.sq .cells { display: grid; grid-template-rows: repeat(7, auto); grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 2px; }
+.sq i { position: relative; aspect-ratio: 1; }
+/* Empty days are a dot; a day with use is a square whose side grows with the square root of its
+   count (its area with the count), never under 30% so a quiet day still reads. */
+.sq i::after { content: ""; position: absolute; inset: calc(50% - 1px); background: var(--ink3); }
+.sq i::before { content: ""; position: absolute; inset: 0; z-index: 1; background: var(--ink); scale: calc(max(0.3, var(--v, 0)) * min(1, var(--v, 0) * 1000)); }
+.sq i.t::before { background: var(--orange); scale: 1; }
+.sq .mons { display: grid; grid-template-columns: repeat(53, minmax(0, 1fr)); column-gap: 2px; margin-top: 6px; }
+.sq b { grid-row: 1; grid-column-start: var(--w); padding: 2px 0 0 4px; border-left: 1px solid var(--ink); font-weight: 400; font-size: 0.75rem; line-height: 1rem; color: var(--ink2); white-space: nowrap; }
+/* The newest month, when its first week is one of the last two, has no room right of its tick:
+   its name sits left of the tick instead, so it never runs past the chart (6 November). */
+.sq b.end { grid-column: auto / var(--w); justify-self: end; margin-right: -3px; padding: 2px 4px 0 0; border-left: 0; border-right: 1px solid var(--ink); }
+.legend .t { width: 6px; height: 6px; background: var(--orange); }
+.usage .heat-sum { margin-top: 12px; font-size: 1rem; line-height: 1.5rem; color: var(--ink2); }
+.legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 40px; font-size: 0.875rem; line-height: 1.25rem; color: var(--ink2); }
+.legend .lg-t { display: inline-flex; align-items: center; gap: 8px; }
+.legend .t { display: block; margin-left: 12px; }
+.usage-table { margin-top: 16px; font-size: 0.875rem; line-height: 1.25rem; }
+.usage-table summary { cursor: pointer; width: fit-content; color: var(--ink); }
+.usage-table table { margin-top: 12px; border-collapse: collapse; }
+.usage-table th, .usage-table td { padding: 6px 16px 6px 0; border-bottom: 1px solid var(--ink); text-align: left; font-weight: 400; }
+.usage-table thead th { color: var(--ink2); vertical-align: bottom; }
+.usage-table tbody th { white-space: nowrap; }
+.usage-table thead th + th { text-align: right; }
+.usage-table td { text-align: right; font-variant-numeric: tabular-nums; }
+.usage .usage-at { margin-top: 12px; }
+/* Phones show the last 26 weeks; a month name too close to a flipped newest one hides. */
+@media (max-width: 599px) {
+  .sq .cells i:nth-child(-n + 189), .sq b.early { display: none; }
+  .sq .mons { grid-template-columns: repeat(26, minmax(0, 1fr)); }
+  .sq b { grid-column-start: var(--wn); }
+  .sq b.end { grid-column: auto / var(--wn); }
+  .sq b.crowd { display: none; }
+}
+
+/* ---- Narrow windows and phones: no focus row, no stage (07 4.1, Phone) ---------------------------- */
+@media (max-width: 899px) {
+  /* The phone menu: three lines that turn into a cross; the links unroll down from the bar as a
+     sheet over the page, which goes inert while it is open (research/20, section 14). */
+  .bar .menu { display: grid; place-content: center; gap: 5px; width: 44px; height: 44px; margin-right: -11px; padding: 0; border: 0; background: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  /* 2 px lines, 5 apart: 16 px in a 44 px box puts every edge on a whole pixel at any scale. */
+  /* A14 (4 November): the lines meet in the middle, then cross; closing, they uncross, then part. */
+  .bar .menu i { display: block; width: 22px; height: 2px; background: currentColor; transition: rotate calc(var(--vt) / 2) var(--ease), translate calc(var(--vt) / 2) var(--ease) calc(var(--vt) / 2), opacity 0s calc(var(--vt) / 2); }
+  .menu-open .bar .menu i { transition: translate calc(var(--vt) / 2) var(--ease), rotate calc(var(--vt) / 2) var(--ease) calc(var(--vt) / 2), opacity 0s calc(var(--vt) / 2); }
+  .menu-open .bar .menu i:nth-of-type(1) { translate: 0 7px; rotate: 45deg; }
+  .menu-open .bar .menu i:nth-of-type(2) { opacity: 0; }
+  .menu-open .bar .menu i:nth-of-type(3) { translate: 0 -7px; rotate: -45deg; }
+  .bar nav { position: fixed; inset: 64px 0 0; padding: 16px var(--m) 0; background: var(--ground); visibility: hidden; clip-path: inset(0 0 100%); transition: clip-path var(--vt) var(--ease), visibility 0s var(--vt); }
+  .menu-open .bar nav { visibility: visible; clip-path: inset(0); transition: clip-path var(--vt) var(--ease); }
+  .bar ul { flex-direction: column; gap: 0; font: 400 2.5rem/3rem var(--display); letter-spacing: var(--tr-endless); }
+  .bar ul a, .bar .nav-l { padding-block: 6px; }
+  .bar .sub { position: static; padding: 0 0 8px; border: 0; background: none; opacity: 1; translate: none; pointer-events: auto; font-size: 1.5rem; line-height: 2rem; }
+  .bar .sub li + li { margin-top: 0; }
+  .menu-open, .menu-open body { overflow: hidden; }
+  .stage { height: auto; }
+  .cover { position: static; height: auto; padding-top: 32px; }
+  /* Three whole phrases, one a line: the name, the role, what sets him apart. The size keeps the
+     longest line (13.15 em with its tracking) inside the column down to a 320 px phone; cqw, unlike
+     vw, leaves out a desktop scrollbar. */
+  .role { font-size: min(3rem, 100cqw / 13.3); }
+  .role .who { display: block; }
+  /* One column, each project at the full width (Thomas, 4 November). */
+  .row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 40px; width: auto; height: auto; margin-top: 32px; }
+  .row .card { position: static; transform: none; width: auto; opacity: 1; }
+  .row .cap { position: static; transform: none; width: auto; display: block; margin-top: 12px; }
+  .cap .n { font-size: 1.25rem; }
+  .cap .c { font-size: 1rem; line-height: 1.5rem; }
+  .leadbar { display: none; }
+  /* 23 gutters need 368 px, more than a phone's column; every part spans the width here anyway. */
+  .grid, .prose section { column-gap: 0; }
+  .grid > * { grid-column: 1 / -1 !important; }
+  .more { padding-block: 96px 80px; }
+  .ix-wrap { display: block; margin-top: 32px; }
+  .ix a { grid-template-columns: minmax(0, 1fr); padding-block: 12px; }
+  .ix .n { font-size: 1.75rem; line-height: 2rem; }
+  .ix-rail, .ix .n::before { display: none; }
+  .more .read { margin-top: 40px; }
+  .teaser { padding-block: 80px 96px; }
+  .ask { display: block; padding-block: 96px; }
+  .ask-h { font-size: 3.5rem; }
+  .ask-line { margin-top: 32px; font-size: 1.125rem; line-height: 1.75rem; }
+  .mail { margin-top: 32px; padding-block: 18px 16px; }
+  .foot { padding-block: 56px 32px; }
+  .foot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 40px; }
+  .foot-grid > * { grid-row: auto; }
+  .foot-mark { grid-column: 1 / -1; width: min(60%, 240px); }
+  .loupe { display: none; }
+  .sign { grid-column: 1 / -1; }
+  .foot-pages { grid-column: 1; }
+  .foot-else { grid-column: 2; }
+  .list a { padding-block: 10px 8px; } /* 44 px targets on a touch screen */
+  .foot-base { grid-column: 1 / -1; margin-top: 8px; }
+  .copyright { margin-top: 12px; }
+  .contact { padding-bottom: 96px; }
+  .contact-info { gap: 72px; margin-top: 80px; }
+  .contact-info section { display: block; }
+  .contact-info section > .label { margin-bottom: 16px; }
+  .profiles a { grid-template-columns: minmax(0, 1fr) auto 10px; column-gap: 16px; padding-block: 12px; }
+  .profiles .pn, .profiles .ph, .profiles .arr { grid-column: auto; }
+  .profiles .pn { font-size: 1.5rem; line-height: 2rem; }
+  .profiles.cv { margin-top: 32px; }
+  .wall { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px var(--g); }
+  .title { font-size: min(3.5rem, 100cqw / 5.2); } /* the longest word, Operations (5.16 em), fits a 320 px phone */
+  .about-head .title { font-size: min(3.5rem, 100cqw / 5.8); } /* Obsession and its point at 200% reading size (I13) */
+  .case-head { margin-top: 24px; }
+  .case-top { display: block; margin-top: 24px; }
+  .hero img { width: 100%; }
+  .about { margin-top: 32px; }
+  .case .claim { font-size: 1.375rem; line-height: 1.75rem; letter-spacing: -0.01em; }
+  .proof { margin-top: 80px; }
+  /* One column; a page and its phone stay side by side, and a row of phones goes three across (four
+     two by two), the last short row centred, so no phone stands alone at full height. */
+  .gallery { margin-top: 80px; grid-template-columns: minmax(0, 1fr); gap: 64px; }
+  .plate.half { grid-column: 1 / -1; }
+  .half .shots { aspect-ratio: auto; }
+  .shots.many { flex-wrap: wrap; justify-content: center; row-gap: 24px; }
+  .shots.many .shot { flex: 0 0 calc((100% - (var(--cols) - 1) * var(--g)) / var(--cols)); }
+  .plate.full.tall .shots.one .shot { width: 100%; }
+  /* Every crop stands one window width tall unless that is wider than the column, so phone crops sit two across. */
+  .shots.sheet { flex-wrap: wrap; justify-content: center; row-gap: 24px; }
+  .shots.sheet .shot { flex: 0 1 min(100%, var(--r) * 100vw); max-width: none; }
+  .portrait { grid-column: 1 / 13 !important; }
+  .about-head { row-gap: 32px; }
+  .about-head .lede { margin-top: 24px; }
+  .prose { padding-top: 64px; }
+  .prose section > * { grid-column: 1 / -1 !important; }
+  .prose section > h2 { margin-bottom: 20px; }
+  .prose .end { padding-left: 0; }
+  .tl { grid-template-columns: 3.25rem repeat(var(--lanes), 1.25rem) minmax(0, 1fr); }
+}
+@media (max-width: 599px) {
+  .wall { grid-template-columns: minmax(0, 1fr); }
+  .panels { grid-template-columns: 1fr; }
+}
+
+/* ---- The grow between pages (07 4.2) ---------------------------------------------------------- */
+@view-transition { navigation: auto; }
+::view-transition { background: var(--paper); }
+::view-transition-group(*) { animation-duration: var(--vt); animation-timing-function: var(--ease); }
+/* The old page clears before the new one arrives, so the two never show as a double exposure. */
+::view-transition-old(root) { animation: tkd-out calc(var(--vt) * 0.5) var(--ease) both; }
+::view-transition-new(root) { animation: tkd-in calc(var(--vt) * 0.6) var(--ease) calc(var(--vt) * 0.3) both; }
+/* Both ends named, so a fade runs over a snapshot the rules below hide. */
+@keyframes tkd-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes tkd-in { from { opacity: 0; } to { opacity: 1; } }
+/* Only the larger snapshot moves, in both directions: the case page's hero and title, scaled down to
+   the card or up from it. A raster shrinks sharp; a small one blown up goes soft. Chrome parses
+   :not(:only-child) after these pseudo-elements but never matches it, so the hide stays plain. */
+::view-transition-old(tkd-img), ::view-transition-new(tkd-img),
+::view-transition-old(tkd-title), ::view-transition-new(tkd-title) { animation: none; }
+html[data-kind="case"]::view-transition-old(tkd-img), html[data-kind="case"]::view-transition-old(tkd-title),
+html[data-kind="list"]::view-transition-new(tkd-img), html[data-kind="list"]::view-transition-new(tkd-title) { opacity: 0; }
+/* A part with no partner on the other page fades with the page instead of hanging in place. */
+::view-transition-old(*):only-child { animation: tkd-out calc(var(--vt) * 0.5) var(--ease) both; }
+::view-transition-new(*):only-child { animation: tkd-in calc(var(--vt) * 0.6) var(--ease) calc(var(--vt) * 0.3) both; }
+html[data-kind="case"] .hero img { view-transition-name: tkd-img; }
+html[data-kind="case"] .title .t { view-transition-name: tkd-title; }
+/* The filters on /projects: cards glide to their new places in the token's time; those that leave
+   shrink and fade in 240 ms (07 5.3). */
+::view-transition-group(.wall) { animation-duration: var(--vt); }
+::view-transition-old(.wall):only-child { animation: tkd-leave 240ms var(--ease) both; }
+::view-transition-new(.wall):only-child { animation: tkd-in 240ms var(--ease) 60ms both; }
+@keyframes tkd-leave { to { opacity: 0; transform: scale(0.94); } }
+html.vt-filter::view-transition-old(root), html.vt-filter::view-transition-new(root) { animation: none; }
+
+/* ---- One-offs and Logos: the two pages that hang off the wall (10-copy 4.2, 4.3) ---- */
+a.up { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; margin-block: -12px; font-size: 1rem; line-height: 1.25rem; text-decoration: none; -webkit-tap-highlight-color: transparent; }
+a.up .arr { width: 20px; height: 14px; transition: transform 240ms var(--ease); }
+a.up:hover .arr { transform: translateX(-3px); }
+.mk-cap, .pc { margin-top: 12px; }
+.mk-cap .c, .pc .c { display: block; margin-top: 4px; font-size: 0.875rem; line-height: 1.25rem; color: var(--ink2); }
+.ask-mark { display: inline-block; margin-top: 4px; font-size: 0.875rem; line-height: 1.25rem; color: var(--ink); text-underline-offset: 0.2em; text-decoration-thickness: 1px; }
+@media (hover: hover) { .coarse { display: none; } }
+@media (hover: none) { .fine { display: none; } }
+
+/* Logos: a stone cell each, 3:2. At 400% the fill thins to a tint and the drawing shows: a 1 px
+   outline and a 4 px square on every anchor point, the same size at any zoom. */
+.marks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px var(--g); margin-block: 40px 160px; }
+.lens { position: relative; display: block; width: 100%; aspect-ratio: 3 / 2; padding: 0; border: 0; overflow: hidden; background: var(--stone); color: var(--ink); cursor: zoom-in; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.lens.on { cursor: grab; touch-action: none; }
+.lens.drag { cursor: grabbing; }
+.lens svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.lens .zoom { transition: transform var(--vt) var(--ease); }
+.lens.drag .zoom { transition: none; }
+.lens .ink { fill: currentColor; stroke: currentColor; stroke-width: 0; vector-effect: non-scaling-stroke; transition: fill-opacity 240ms var(--ease); }
+.lens.on .ink { fill-opacity: 0.12; stroke-width: 1px; }
+.lens .anchors { fill: none; stroke: currentColor; stroke-width: 4px; stroke-linecap: square; vector-effect: non-scaling-stroke; opacity: 0; transition: opacity 240ms var(--ease); }
+.lens.on .anchors { opacity: 1; }
+.lens .pct { position: absolute; top: 8px; right: 8px; padding-inline: 4px; background: var(--stone); font-size: 0.8125rem; line-height: 1.25rem; font-variant-numeric: tabular-nums; color: var(--ink2); }
+
+/* One-offs: columns, each piece in its own proportions. */
+.pieces { columns: 4; column-gap: var(--g); margin-block: 40px 120px; }
+.pieces > li { break-inside: avoid; padding-bottom: 40px; }
+.piece { display: block; -webkit-tap-highlight-color: transparent; }
+.piece img { width: 100%; height: auto; background: var(--stone); transition: transform 120ms var(--ease); }
+.piece:active img { transform: scale(0.985); }
+li:has(.piece:hover) > .pc .n, li:has(.piece:focus-visible) > .pc .n { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 5px; }
+
+/* A set (N10): with the script, the columns show its first piece only, a count on its corner and
+   two sheet edges under it, and the viewer steps through the rest. Without it, every piece shows
+   under the set's label. */
+.set { break-inside: auto; }
+.set > .pc { margin: 0 0 12px; }
+.set-ps { display: grid; gap: var(--g); }
+.set .piece { position: relative; break-inside: avoid; }
+.set-n { display: none; }
+.js .board:not([data-view="table"]) .set { display: flex; flex-direction: column; break-inside: avoid; }
+.js .board:not([data-view="table"]) .set > .pc { order: 1; margin: 12px 0 0; }
+.js .board:not([data-view="table"]) .set .piece + .piece { display: none; }
+.js .board:not([data-view="table"]) .set-ps { gap: 0; }
+.js .board:not([data-view="table"]) :is(.set .piece, .set-ps)::after { content: ""; display: block; height: 3px; margin-inline: 6px; border: 1px solid var(--ink3); border-top: 0; }
+.js .board:not([data-view="table"]) .set-ps::after { margin-inline: 12px; }
+.js .board:not([data-view="table"]) .set-n { position: absolute; top: 8px; left: 8px; display: flex; align-items: center; gap: 6px; padding-inline: 6px; background: var(--paper); font-family: var(--mono); font-size: 0.8125rem; line-height: 1.5rem; font-variant-numeric: tabular-nums; }
+.set-n::before { content: ""; width: 6px; height: 6px; background: var(--orange); }
+
+/* The light table (07 5.6; site.js): the same list on a stone plane the width of the window, each
+   piece at one height in its own proportions, in rows that run past the edges. site.js moves the
+   list with a transform; the plane clips it and is no scroll box, so the wheel scrolls the page. */
+.oo-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; }
+.view { flex: none; min-height: 44px; padding: 0; border: 0; background: none; cursor: pointer; font-size: 1rem; }
+.view span { display: inline-block; padding-bottom: 2px; }
+.board { position: relative; --ph: 260px; }
+.board[data-view="table"] { width: auto; margin-block: 40px 120px; }
+.board[data-view="table"] .plane { position: relative; height: clamp(480px, 100svh - 160px, 960px); overflow: clip; background: var(--stone); cursor: grab; touch-action: pinch-zoom; user-select: none; -webkit-user-select: none; }
+.board[data-view="table"] .plane.held { cursor: grabbing; }
+.board[data-view="table"] .pieces { position: absolute; top: 0; left: 0; transform-origin: 0 0; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 64px 56px; width: calc(var(--ph) * 14); margin: 0; padding: 96px; columns: auto; }
+.board[data-view="table"] .pieces > li { width: min-content; padding: 0; }
+/* A set keeps its pieces on one line, as tall as any lone piece, so every row of the table is one
+   height and nothing leaves a gap under its neighbours. The Megapack deck (11 slides) is the one set
+   too long for that: it takes a row of its own as a strip of slides at 60% height (Thomas, 4 November). */
+.board[data-view="table"] .pieces > .set { width: max-content; padding-top: 8px; border-top: 1px solid var(--ink); }
+.board[data-view="table"] .set-ps { display: flex; gap: 16px; }
+.board[data-view="table"] .pieces > .deck { flex-basis: 100%; width: auto; }
+.board[data-view="table"] .deck .piece img { height: calc(var(--ph) * 0.6); }
+.board[data-view="table"] .piece img { width: auto; height: var(--ph); max-width: none; background: var(--paper); -webkit-user-drag: none; }
+.board:not([data-view="table"]) :is(.hint, .pan, .zoom) { display: none; }
+.hint { position: absolute; top: 16px; left: var(--m); margin: 0; padding: 6px 10px; background: var(--paper); font-size: 0.875rem; line-height: 1.25rem; pointer-events: none; transition: opacity 240ms var(--ease); }
+.hint.gone { opacity: 0; }
+.pan { position: absolute; right: var(--m); bottom: 16px; display: grid; grid-template: ". up ." 44px "left down right" 44px / 44px 44px 44px; gap: 2px; margin: 0; }
+.zoom { position: absolute; left: var(--m); bottom: 16px; display: grid; grid-template-rows: 44px auto 44px; width: 44px; gap: 2px; margin: 0; }
+.zoom span { background: var(--paper); font-size: 0.6875rem; line-height: 1.25rem; text-align: center; font-variant-numeric: tabular-nums; }
+.zoom button[aria-disabled="true"] { color: var(--ink3); cursor: default; }
+.zoom button[aria-disabled="true"]:hover { background: var(--paper); color: var(--ink3); }
+.pan button, .zoom button { display: grid; place-items: center; padding: 0; border: 0; background: var(--paper); color: var(--ink); cursor: pointer; }
+.pan .up { grid-area: up; } .pan .left { grid-area: left; } .pan .down { grid-area: down; } .pan .right { grid-area: right; }
+.pan button:hover, .zoom button:hover { background: var(--ink); color: var(--paper); }
+/* I8 (round 6): paper grain on the table, a fine noise multiplied into the stone. */
+.board[data-view="table"] .plane::before { content: ""; position: absolute; inset: 0; pointer-events: none; mix-blend-mode: multiply; opacity: 0.5; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.48 0 0 0 0 0.44 0 0 0 0.35 0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E"); }
+.board[data-view="table"] .plane { isolation: isolate; }
+.board[data-view="table"] .pieces { z-index: 1; }
+
+/* The viewer: one piece over the page, at no more than half its pixel width (site.js sizes it). */
+html:has(.viewer[open]) { overflow: hidden; }
+/* ---- Good Word: the 54 weekly covers on a sphere (components/Weeks.astro) ------------------------ */
+/* Without script the covers lie in a grid with their week numbers. With it, each sits on a ring of
+   latitude at radius R, faces out and hides its back; the ball turns as a whole. The covers keep
+   their own colour; the marker is a 1px orange outline on the cover under the pointer or focus. */
+.weeks { margin-top: 120px; }
+.weeks h2 { font: 400 clamp(2rem, 3.4vw, 3.25rem)/1 var(--display); line-height: round(up, 1.04em, 4px); letter-spacing: var(--tr-endless); }
+.weeks-sub { max-width: 36rem; margin-top: 16px; font-size: 1rem; line-height: 1.5rem; color: var(--ink2); }
+.ball { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 24px var(--g); margin-top: 40px; }
+.wk { display: block; text-decoration: none; }
+.wk img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 5; background: var(--stone); }
+.wk-n { display: block; margin-top: 4px; font-size: 0.75rem; line-height: 1rem; color: var(--ink2); }
+.globe.on { --R: min(320px, 40vw); --tw: calc(var(--R) * 0.3); display: grid; place-items: center; height: calc(var(--R) * 2.6); margin-top: 24px; perspective: calc(var(--R) * 5); cursor: grab; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+.globe.on.held { cursor: grabbing; }
+.globe.on .ball { position: relative; display: block; width: 0; height: 0; margin: 0; transform-style: preserve-3d; will-change: transform; }
+/* During a drag no cover takes hover or a press, so the pointer never stalls on one. */
+.globe.on.held .wk { pointer-events: none; }
+.globe.on li { position: absolute; left: calc(var(--tw) / -2); top: calc(var(--tw) * -0.625); width: var(--tw); transform: rotateY(var(--lon)) rotateX(var(--lat)) translateZ(var(--R)); -webkit-backface-visibility: hidden; backface-visibility: hidden; }
+.globe.on .wk img { -webkit-user-drag: none; }
+.globe.on .wk:is(:hover, :focus-visible) { outline: 1px solid var(--orange); outline-offset: 3px; }
+.globe.on .wk-n { display: none; }
+.globe-read { margin-top: 16px; text-align: center; font-size: 0.875rem; line-height: 1.25rem; color: var(--ink2); }
+.globe-read .num { margin-right: 8px; color: var(--ink); }
+.globe:not(.on) + .globe-read { display: none; }
+.gw .v-img { width: auto; height: 100%; max-width: 100%; max-height: 675px; aspect-ratio: 1080 / 1350; object-fit: contain; }
+.viewer { position: fixed; inset: 0; width: auto; height: auto; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; background: var(--paper); color: var(--ink); }
+.viewer[open] { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
+.viewer::backdrop { background: none; }
+.viewer:focus { outline: none; }
+.v-top { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 8px var(--m); }
+.v-count { display: flex; align-items: center; gap: 8px; }
+.v-count .num { font-size: 0.9375rem; color: var(--ink); }
+.v-pt { width: 6px; height: 6px; background: var(--orange); }
+.v-nav { display: flex; gap: 24px; }
+.v-nav button { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0; border: 0; background: none; cursor: pointer; font-size: 1rem; }
+/* A4 (phase 2): the viewer's ground, its top line and caption fade in from @starting-style, so the
+   opening needs no script; site.js keeps its own fades for a browser without the rule. The piece's
+   flight from its tile stays in site.js, which knows where the tile is. */
+@media (prefers-reduced-motion: no-preference) {
+  .viewer[open] { transition: background-color var(--vt) var(--ease); }
+  .viewer[open] :is(.v-top, .v-cap) { transition: opacity 240ms var(--ease) 60ms; }
+  @starting-style {
+    .viewer[open] { background-color: transparent; }
+    .viewer[open] :is(.v-top, .v-cap) { opacity: 0; }
+    .viewer[open] .ic i:nth-child(n) { --x: 0px; --r: 0deg; --w: 10px; }
+    .viewer[open] .ic i:nth-child(1) { --y: -4px; }
+    .viewer[open] .ic i:nth-child(2) { --y: 0px; }
+    .viewer[open] .ic i:nth-child(3) { --y: 4px; }
+  }
+}
+/* Thomas's pick (6 November, b): the viewer's controls are the icons alone, half again as large; the
+   words stay for screen readers. */
+.v-nav button:not(.v-press) { justify-content: center; min-width: 44px; }
+.v-nav button:not(.v-press) > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.v-nav .ic { scale: 1.5; }
+.v-nav button span { display: inline-block; padding-bottom: 2px; }
+.v-stage { display: grid; place-items: center; min-height: 0; padding-inline: var(--m); touch-action: pan-y pinch-zoom; }
+.v-img { max-width: none; transform-origin: 0 0; background: var(--stone) center / 100% 100% no-repeat; }
+.v-cap { padding: 16px var(--m) 24px; }
+/* I9 (round 6): the press check's plates share the image's grid cell, multiplied on paper. Its
+   button is the one boxed control, leftmost, so Previous, Next and Close never move when a piece has
+   no press check. An anchor square marks it: empty at rest, orange while the plates are out. */
+.v-nav .v-press { display: inline-flex; align-items: center; gap: 8px; align-self: center; min-height: 36px; padding: 0 14px; border: 1px solid var(--ink); }
+.v-nav .v-press[hidden] { display: none; }
+.v-nav .v-press::before { content: ''; width: 7px; height: 7px; box-sizing: border-box; border: 1px solid currentColor; }
+.v-nav .v-press[aria-pressed="true"]::before { background: var(--orange); border-color: var(--orange); }
+.v-nav .v-press:hover { background: var(--ink); color: var(--paper); }
+.v-nav .v-press span, .v-nav .v-press:hover span { padding: 0; background: none; }
+.v-stage > * { grid-area: 1 / 1; }
+.v-img.pressed { visibility: hidden; }
+.plates { position: relative; pointer-events: none;  }
+.sep { position: absolute; inset: 0; mix-blend-mode: multiply; transform-origin: 0 0; transition: transform calc(var(--vt) * 2) var(--ease); }
+.sep canvas { display: block; width: 100%; height: 100%; }
+.pl-n { position: absolute; top: 0; left: 0; padding: 4px 10px; background: var(--paper); font: 400 1.5rem/2.25rem var(--mono); font-variant-numeric: tabular-nums; opacity: 0; transition: opacity var(--vt) var(--ease); }
+.plates.apart .sep { mix-blend-mode: normal; }
+.plates.apart .p0 { transform: scale(0.49); }
+.plates.apart .p1 { transform: translate(51%, 0) scale(0.49); }
+.plates.apart .p2 { transform: translate(0, 51%) scale(0.49); }
+.plates.apart .p3 { transform: translate(51%, 51%) scale(0.49); }
+.plates.apart .pl-n { opacity: 1; }
+html.still .sep, html.still .pl-n { transition: none; }
+.v-cap .c { display: block; font-size: 0.875rem; line-height: 1.25rem; color: var(--ink2); }
+.v-cap .n { display: block; margin-top: 4px; font: 400 1.5rem/1.75rem var(--display); letter-spacing: var(--tr-endless); }
+@media (max-width: 1279px) { .pieces { columns: 3; } }
+@media (max-width: 899px) { .pieces { columns: 2; } .board { --ph: 220px; } }
+@media (max-width: 599px) { .marks { grid-template-columns: minmax(0, 1fr); } .v-nav { gap: 20px; } .v-cap .n { font-size: 1.25rem; line-height: 1.5rem; } }
+
+/* Script off: site.js never adds .motion, so the cover gets the flat layout reduced motion gets,
+   not a 260vh stage with nothing driving it. */
+html:not(.motion) .stage { height: auto; }
+html:not(.motion) .cover { position: static; height: auto; }
+html:not(.motion) .leadbar { display: none; }
+html:not(.motion) .g1-hero { display: block; margin-bottom: 24px; }
+
+/* Reduced motion: site.js leaves .motion off at load (the layouts above) and sets html.still from
+   the system setting. */
+html.still, html.still .bar, html.still .bar nav, html.still .bar .menu i, html.still .uncover .mover, html.still .uncover .counter, html.still .uncover img, html.still .ix .n, html.still .ix-pv, html.still .ix .n::before, html.still .lens .zoom, html.still .lens .ink, html.still .lens .anchors, html.still .foot-mark .ink, html.still .foot-mark .anchors, html.still .glass { transition: none !important; }
+html:not(.motion) .g1-hero .frame { aspect-ratio: 3 / 2; }
+html:not(.motion) .g1-head { position: static !important; width: auto !important; height: auto !important; overflow: visible !important; clip-path: none !important; white-space: normal !important; }
+html.still::view-transition-group(*) { animation: none !important; }
+html.still::view-transition-old(*) { animation: tkd-out 120ms linear both !important; }
+html.still::view-transition-new(*) { animation: tkd-in 120ms linear both !important; }
+
+/* ---- Wave 1 lab (4 November) ------------------------------------------------------------------- */
+/* I7: the mark drawn from its geometry. --p runs 0 to 1: anchors (0 to 0.15), handles (0.15 to 0.3),
+   the outline drawn (0.3 to 0.7), the fill (0.7 to 0.9); the anchors and handles go as the fill
+   lands, so the end state is the plain mark. */
+/* Round 8: the Figma prototype. A bar (heading, tabs, the link out), then a stage that holds a
+   button until the reader asks, and the frame after. */
+.proto { margin-top: 120px; }
+.proto-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 24px; padding-bottom: 20px; border-bottom: 1px solid var(--ink); }
+.proto-bar h2 { margin-right: auto; font: 400 clamp(2rem, 3.4vw, 3.25rem)/1 var(--display); line-height: round(up, 1.04em, 4px); letter-spacing: var(--tr-endless); }
+.proto-tabs { display: flex; }
+.proto-tabs button { min-height: 44px; padding: 0 16px; font: 400 0.8125rem/1 var(--mono); color: var(--ink); background: none; border: 1px solid var(--ink); cursor: pointer; }
+.proto-tabs button + button { border-left: 0; }
+.proto-tabs button[aria-pressed="true"] { color: var(--paper); background: var(--ink); }
+.proto-stage { display: grid; place-content: center; justify-items: center; gap: 16px; height: min(80vh, 800px); min-height: 480px; border-bottom: 1px solid var(--ink); background: var(--stone); }
+.proto.on .proto-stage { display: block; }
+.proto-stage iframe { display: block; width: 100%; height: 100%; border: 0; }
+.proto-load { min-height: 56px; padding: 0 28px; font: 400 1rem/1 var(--mono); color: var(--paper); background: var(--ink); border: 0; cursor: pointer; }
+.proto-load::before { content: ''; display: inline-block; width: 7px; height: 7px; margin-right: 12px; vertical-align: middle; background: var(--orange); }
+.proto-note { font-size: 0.875rem; line-height: 1.25rem; color: var(--ink2); }
+@media (max-width: 899px) { .proto { margin-top: 80px; } .proto-stage { height: 80svh; min-height: 420px; } }
+.mark-sec { margin-top: 120px; }
+.mark-sec h2 { font: 400 clamp(2rem, 3.4vw, 3.25rem)/1 var(--display); line-height: round(up, 1.04em, 4px); letter-spacing: var(--tr-endless); }
+.draw { margin-top: 32px; }
+.draw-art { background: var(--stone); }
+.draw-art { display: grid; place-items: center; height: min(72vh, 720px); padding: 32px; }
+.draw-art svg { display: block; width: 100%; height: 100%; }
+.draw .d-fill path { fill: var(--ink); fill-opacity: clamp(0, (var(--p) - 0.7) / 0.2, 1); }
+/* The drawn outlines are measured in the mark's own units (--upx, one screen pixel in them, from
+   site.js), not non-scaling: under non-scaling-stroke Chrome lays a pathLength dash out in screen
+   pixels, so outlines stopped short of closing (5 November). */
+.draw .d-line path { fill: none; stroke: var(--ink); stroke-width: var(--upx, 0); stroke-dasharray: 1; stroke-dashoffset: calc(1 - clamp(0, (var(--p) - 0.3) / 0.4, 1)); }
+.draw .d-handles { fill: none; stroke: var(--ink2); stroke-width: 1px; vector-effect: non-scaling-stroke; opacity: calc(clamp(0, (var(--p) - 0.15) / 0.1, 1) * (1 - clamp(0, (var(--p) - 0.75) / 0.15, 1))); }
+.draw .d-anchors { fill: none; stroke: var(--orange); stroke-width: 4px; stroke-linecap: square; vector-effect: non-scaling-stroke; opacity: calc(clamp(0, var(--p) / 0.08, 1) * (1 - clamp(0, (var(--p) - 0.8) / 0.15, 1))); }
+.draw-cap { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) auto; column-gap: var(--g); margin-top: 16px; }
+.draw-scrub { grid-column: 1 / 5; grid-row: 1; display: block; height: 28px; }
+.draw-scrub input { display: block; width: 100%; height: 28px; margin: 0; background: none; cursor: ew-resize; appearance: none; -webkit-appearance: none; }
+.draw-scrub input::-webkit-slider-runnable-track { height: 1px; background: var(--ink); }
+.draw-scrub input::-moz-range-track { height: 1px; background: var(--ink); }
+.draw-scrub input::-webkit-slider-thumb { -webkit-appearance: none; width: 4px; height: 20px; margin-top: -10px; border: 0; border-radius: 0; background: var(--orange); }
+.draw-scrub input::-moz-range-thumb { width: 4px; height: 20px; border: 0; border-radius: 0; background: var(--orange); }
+.draw-scrub input:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
+.draw-stages { grid-column: 1 / 5; grid-row: 2; display: grid; grid-template-columns: 15fr 15fr 40fr 30fr; font-size: 0.875rem; line-height: 1.25rem; color: var(--ink2); }
+.draw-read { grid-column: 5; grid-row: 1 / 3; align-self: center; font-size: 0.875rem; line-height: 1.25rem; color: var(--ink2); }
+.draw-read .s { color: var(--ink); }
+/* Phones: a square plate, and the caption stacks: the stage read out above the track. The stage
+   names would collide at 320 px, and the read-out already names the stage. */
+@media (max-width: 899px) {
+  .draw-art { height: auto; aspect-ratio: 1; max-height: 70vh; padding: 20px; }
+  .draw-cap { grid-template-columns: minmax(0, 1fr); row-gap: 4px; margin-top: 12px; }
+  .draw-read { grid-column: 1; grid-row: 1; }
+  .draw-scrub { grid-column: 1; grid-row: 2; }
+  .draw-stages { display: none; }
+}
+/* ?i7=b: drag across the mark; the slider shows only while it has the keyboard. */
+/* I7 on /logos: outline first, then the fill, the anchors on the way. */
+.lens.drawing .ink { vector-effect: none; stroke-width: var(--upx, 0); stroke-dasharray: 1; stroke-dashoffset: calc(1 - clamp(0, (var(--p) - 0.1) / 0.55, 1)); fill-opacity: clamp(0, (var(--p) - 0.65) / 0.3, 1); transition: none; }
+.lens.drawing .anchors { stroke: var(--orange); opacity: calc(clamp(0, var(--p) / 0.1, 1) * (1 - clamp(0, (var(--p) - 0.75) / 0.2, 1))); transition: none; }
+/* I4: numbers that open. Each digit rolls up its own wheel as the row comes into view, 300 ms,
+   the right-hand digit first; a figure with a proof opens it in place, below the row. */
+.fig-open { display: block; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.fig-open:focus-visible { outline: 2px solid var(--ink); outline-offset: 6px; }
+.pf-cue::before { content: " · "; }
+.pf-cue::after { content: "Show"; text-decoration: underline 1px; text-underline-offset: 3px; color: var(--ink); }
+.fig-open[aria-expanded=true] .pf-cue::after { content: "Hide"; }
+.fig-open:hover .pf-cue::after { text-decoration-thickness: 2px; }
+.odo { display: inline-flex; }
+.wh { display: inline-block; height: 1lh; overflow: hidden; vertical-align: top; }
+.wh .col { display: block; transform: translateY(calc(var(--d) * -1lh)); transition: transform var(--vt) var(--ease) calc(var(--k) * 60ms); }
+.wh .col > span { display: block; }
+.figures.wait .wh .col { transform: none; transition: none; }
+.pf-panel { display: grid; grid-template-rows: 1fr; transition: grid-template-rows var(--vt) var(--ease); }
+.pf-panel.opening { grid-template-rows: 0fr; }
+/* display: grid above beats the hidden attribute, so every proof showed from load (4 to 6 November,
+   found by check-motion.mjs). With script off the proofs stay shown, since nothing could open them. */
+.js .pf-panel[hidden] { display: none; }
+.pf-in { min-height: 0; overflow: hidden; }
+.pf { margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--ink); }
+.pf-why { max-width: var(--measure); }
+.pf-why p { font-size: 1.125rem; line-height: 1.75rem; }
+.pf-why p + p { margin-top: 12px; }
+/* The groups: name, count, what they cover, one ruled row each. */
+.pf-sum { margin-top: 32px; border-top: 1px solid var(--ink); }
+.pf-sum > div { display: grid; grid-template-columns: minmax(0, 5fr) 4ch minmax(0, 12fr); column-gap: var(--g); align-items: baseline; padding-block: 11px 12px; border-bottom: 1px solid color-mix(in srgb, var(--ink) 18%, transparent); }
+.pf-sum dt { font-size: 1rem; line-height: 1.5rem; }
+.pf-sum dd.num { text-align: right; color: var(--ink); }
+.pf-sum dd:last-child { font-size: 0.9375rem; line-height: 1.5rem; color: var(--ink2); }
+/* The full list stays shut until asked for. */
+.pf-all { margin-top: 24px; }
+.pf-all summary { display: inline-flex; gap: 10px; align-items: baseline; padding-block: 10px; cursor: pointer; list-style: none; font-size: 1rem; line-height: 1.5rem; }
+.pf-all summary span { text-decoration: underline 1px; text-underline-offset: 3px; }
+.pf-all summary::-webkit-details-marker { display: none; }
+.pf-all summary::before { content: "+"; width: 1ch; font-family: var(--mono); color: var(--orange); }
+.pf-all[open] summary::before { content: "\2212"; }
+.pf-all summary:hover span { text-decoration-thickness: 2px; }
+.pf-all summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
+.pf-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 24px var(--g); margin-top: 24px; }
+.pf-grid img { display: block; width: 100%; height: auto; outline: 1px solid color-mix(in srgb, var(--ink) 18%, transparent); outline-offset: -1px; }
+.pf-grid li > span { display: block; margin-top: 8px; font-size: 0.875rem; line-height: 1.25rem; }
+.pf .num { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--ink2); }
+.pf-names { columns: 4; column-gap: var(--g); margin-top: 16px; }
+.pf-names li { break-inside: avoid; padding-block: 7px 6px; border-bottom: 1px solid color-mix(in srgb, var(--ink) 18%, transparent); font-size: 0.9375rem; line-height: 1.25rem; }
+.pf-tests { columns: 3; column-gap: var(--g); margin-top: 16px; }
+.pf-tests section { break-inside: avoid-column; padding-bottom: 20px; }
+.pf-tests h3 { padding-bottom: 6px; border-bottom: 1px solid var(--ink); font: 400 0.8125rem/1.25rem var(--mono); }
+.pf-tests li { padding-block: 3px; font-size: 0.8125rem; line-height: 1.125rem; color: var(--ink2); }
+@media (max-width: 899px) {
+  .pf-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pf-names { columns: 2; }
+  .pf-tests { columns: 1; }
+  .pf-sum > div { grid-template-columns: minmax(0, 1fr) 4ch; row-gap: 2px; }
+  .pf-sum dd:last-child { grid-column: 1 / -1; }
+}
+/* A14: an arrow that leaves the site runs out of its box to the top right and comes back in from the
+   bottom left; the mail arrow does the same to the right. The Work chevron turns over when its list
+   opens. 300 ms, the one curve. */
+.arr path { transform-box: view-box; }
+@keyframes pass-out { 45% { translate: 13px -13px; } 46% { translate: -13px 13px; } }
+@keyframes pass-on { 45% { translate: 22px 0; } 46% { translate: -22px 0; } }
+.motion a:hover .arr.out path, .motion a:focus-visible .arr.out path { animation: pass-out var(--vt) var(--ease); }
+.motion .mail:hover .arr:not(.out):not(.down) path { animation: pass-on var(--vt) var(--ease); }
+.mail:hover .arr { transform: none; }
+/* A14 (phase 2): the bar's chevron and the viewer's controls are three 1.5 px lines that move between
+   shapes, as the menu's do. Each line takes its place from --x, --y, --r and --w; a shape only sets
+   those. At rest the three lie flat (the menu's three lines); the viewer's draw out of that as it
+   opens (@starting-style below). 300 ms, the one curve; under reduced motion the icon stands still. */
+.ic { position: relative; display: inline-block; flex: none; width: 12px; height: 12px; }
+.ic i { position: absolute; left: 50%; top: 50%; width: var(--w, 10px); height: 1.5px; margin: -0.75px 0 0 calc(var(--w, 10px) / -2); background: currentColor; translate: var(--x, 0px) var(--y, 0px); rotate: var(--r, 0deg); }
+@media (prefers-reduced-motion: no-preference) { .ic i { transition: translate var(--vt) var(--ease), rotate var(--vt) var(--ease), width var(--vt) var(--ease), margin var(--vt) var(--ease); } }
+.ic i:nth-child(1) { --y: -4px; }
+.ic i:nth-child(3) { --y: 4px; }
+.ic.next i:nth-child(1) { --x: 3.25px; --y: -2.25px; --r: 45deg; --w: 6.4px; }
+.ic.next i:nth-child(2) { --w: 11px; }
+.ic.next i:nth-child(3) { --x: 3.25px; --y: 2.25px; --r: -45deg; --w: 6.4px; }
+.ic.prev i:nth-child(1) { --x: -3.25px; --y: -2.25px; --r: -45deg; --w: 6.4px; }
+.ic.prev i:nth-child(2) { --w: 11px; }
+.ic.prev i:nth-child(3) { --x: -3.25px; --y: 2.25px; --r: 45deg; --w: 6.4px; }
+.ic.x i:nth-child(1) { --y: 0px; --r: 45deg; --w: 13px; }
+.ic.x i:nth-child(2) { --w: 0px; }
+.ic.x i:nth-child(3) { --y: 0px; --r: -45deg; --w: 13px; }
+/* The Work chevron: v at rest, ^ while its list is open; the two strokes swing through flat. */
+.ic.chev { width: 8px; height: 8px; margin-left: 6px; vertical-align: 0.15em; }
+.ic.chev i:nth-child(1) { --x: -1.5px; --y: 0px; --r: 45deg; --w: 4.6px; }
+.ic.chev i:nth-child(2) { --w: 0px; }
+.ic.chev i:nth-child(3) { --x: 1.5px; --y: 0px; --r: -45deg; --w: 4.6px; }
+.bar .has-sub:is(:hover, :focus-within, .linger, .open):not(.shut) .chev i:nth-child(1) { --r: -45deg; }
+.bar .has-sub:is(:hover, :focus-within, .linger, .open):not(.shut) .chev i:nth-child(3) { --r: 45deg; }
+@media (max-width: 899px) { .chev { display: none; } }
+
+/* I15: the 400% lens (wave 2). One lens for the page, fixed, trailing the pointer; a 1px orange
+   cross marks its centre, and the zoom reads in the corner. */
+.glass { position: fixed; top: 0; left: 0; z-index: 60; width: 176px; height: 176px; border: 1px solid var(--ink); background: var(--paper) no-repeat; pointer-events: none; opacity: 0; transition: opacity 120ms var(--ease); }
+.glass.on { opacity: 1; }
+.glass::before, .glass::after { content: ""; position: absolute; background: var(--orange); }
+.glass::before { left: 50%; top: calc(50% - 8px); width: 1px; height: 16px; }
+.glass::after { top: 50%; left: calc(50% - 8px); width: 16px; height: 1px; }
+.glass-z { position: absolute; right: 0; bottom: 0; padding: 2px 6px; background: var(--ink); color: var(--paper); font: 400 0.6875rem/1rem var(--mono); font-variant-numeric: tabular-nums; }
+@media (hover: hover) and (pointer: fine) and (min-width: 900px) { .case .hero img, .gallery .frame:not(.clip) img { cursor: crosshair; } }
+
+/* ---- Micro-interactions (round 11; research/24-micro-interactions.md) ---------------------------- */
+/* Work's sheet comes in at 180 ms and goes at 120: an exit only has to get out of the way. */
+.bar .sub { transition-duration: 120ms; }
+.bar .has-sub:is(:hover, :focus-within, .linger, .open):not(.shut) .sub { transition-duration: 180ms; }
+/* The phone menu closes in three quarters of its opening time, for the same reason. */
+@media (max-width: 899px) {
+  .bar nav { transition: clip-path calc(var(--vt) * 0.75) var(--ease), visibility 0s calc(var(--vt) * 0.75); }
+}
+/* A press answers at once: buttons give 3% under the finger or the pointer, in 120 ms. */
+.button, .clip-btn, .pan button, .zoom button, .v-nav button, .filters button { transition-property: background-color, color, scale; transition-duration: 120ms; transition-timing-function: var(--ease); }
+:is(.button, .clip-btn, .pan button, .zoom button:not([aria-disabled="true"]), .v-nav button, .filters button):active { scale: 0.97; }
+/* Where nothing hovers (a phone), a tap must not leave a button filled or a filter underlined after
+   the finger lifts: iOS keeps :hover on the last thing tapped until the next tap elsewhere. */
+@media (hover: none) {
+  .button:hover { background: none; color: inherit; }
+  .clip-btn:hover, .pan button:hover, .zoom button:hover { background: var(--paper); color: var(--ink); }
+  .v-nav .v-press:hover { background: none; color: inherit; }
+  .filters button:not([aria-pressed="true"]):hover span:first-child { background-size: 0 1px; }
+}
+/* A scroll inside the open menu or the viewer stays there instead of moving the page behind it. */
+.bar nav, .viewer { overscroll-behavior: contain; }
+html.still :is(.button, .clip-btn, .pan button, .zoom button, .v-nav button, .filters button, .bar .sub) { transition-duration: 0s; }
+
+/* ---- I10: a brand case opens on its specimen sheet (lab/i10, variant A; components/Sheet.astro) ----
+   Shown only on a plain arrival with motion on; .grown marks an arrival by a grow (site.js). The
+   hero waits behind the sheet clipped to its middle, then opens from there as the parts close in. */
+.sheet { display: none; }
+@media (min-width: 1200px) { .hero[data-sheet] { position: relative; width: fit-content; } }
+@media (max-width: 1199px) { .hero[data-sheet] { position: relative; } }
+html.motion:not(.grown) .hero[data-sheet] .sheet { position: absolute; inset: 0; display: grid; grid-template: 1fr 1fr / 1fr 1fr; overflow: hidden; pointer-events: none; }
+html.motion:not(.grown) .hero[data-sheet] > img { clip-path: inset(50% 50%); transition: clip-path 600ms var(--ease) 160ms; }
+html.motion:not(.grown) .hero[data-sheet].go > img { clip-path: inset(0 0); }
+.part { position: relative; display: grid; place-items: center; overflow: hidden; background: var(--sg); color: var(--si); box-shadow: 0 0 0 0.5px var(--si); transition: translate var(--vt) var(--ease), scale var(--vt) var(--ease), opacity var(--vt) var(--ease); }
+.part:nth-child(2) { transition-delay: 80ms; } .part:nth-child(3) { transition-delay: 160ms; } .part:nth-child(4) { transition-delay: 240ms; }
+.go .part { scale: 0.6; opacity: 0; }
+.go .part:nth-child(1) { translate: 25% 25%; } .go .part:nth-child(2) { translate: -25% 25%; }
+.go .part:nth-child(3) { translate: 25% -25%; } .go .part:nth-child(4) { translate: -25% -25%; }
+.part .k { position: absolute; z-index: 1; left: 16px; top: 12px; font-size: 0.8125rem; line-height: 1; }
+.p-mark svg { width: 100%; height: 100%; }
+.chips { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); width: 84%; height: 42%; margin-top: -8%; }
+.chips li { position: relative; background: var(--c); }
+.chips li.edge { box-shadow: inset 0 0 0 1px var(--si); }
+.chips span { position: absolute; left: 0; top: calc(100% + 8px); font: 400 0.6875rem/1 var(--mono); white-space: nowrap; }
+.p-type .ty { width: 84%; height: 64%; background: center / contain no-repeat; }
+.p-zoom .z { position: absolute; inset: 0; background: center / cover no-repeat; }
+.p-zoom .k { left: 10px; top: 6px; padding: 6px; background: var(--sg); }
+@media (max-width: 899px) { .chips[data-many] span { display: none; } }
+@media (max-width: 599px) {
+  .part .k { left: 8px; top: 8px; font-size: 0.6875rem; }
+  .p-zoom .k { left: 4px; top: 4px; padding: 4px; }
+  .chips span { display: none; }
+}

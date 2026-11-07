@@ -1,0 +1,32 @@
+---
+import { LEGAL, MAILTO, PAGES, SOCIAL } from '../data/site'
+import Arrow from './Arrow.astro'
+import { shapes } from '../lib/marks'
+import svg from '../assets/takd-mark.svg?raw'
+// The footer: the mark with a 400% loupe that follows the pointer (round 5, 4 November), the pages,
+// the profiles and email, then the verse and the year. The 404 drops the verse, so faith and Star
+// Wars never share a screen (10-copy 1.8). Thomas will send the grids he drew the mark on; they go
+// in as drafting lines behind it.
+const { scripture = true } = Astro.props as { scripture?: boolean }
+const m = shapes(svg)
+const view = m.view.join(' ')
+---
+<footer class="foot">
+  <div class="w foot-grid">
+    <figure class="foot-mark" role="img" aria-label="The TAKramer Designs mark">{['', 'loupe'].map((k) => {
+      const svg = <svg viewBox={view} aria-hidden="true">{m.paths.map((d) => <path class="ink" d={d} />)}<path class="anchors" d={m.anchors} /></svg>
+      return k ? <span class="loupe" aria-hidden="true">{svg}</span> : svg
+    })}</figure>
+
+    <p class="sign"><span class="sign-n">Thomas Kramer</span><span class="sign-r">Brand and product designer who builds what he designs.</span></p>
+    <nav class="foot-col foot-pages" aria-labelledby="foot-pages"><p class="label" id="foot-pages">Pages</p><ul class="list">{PAGES.map(([n, h]) => <li><a href={h}>{n}</a></li>)}</ul></nav>
+    <div class="foot-col foot-else"><p class="label" id="foot-else">Profiles</p><ul class="list" aria-labelledby="foot-else">{SOCIAL.map(([n, h]) => <li><a href={h} target="_blank" rel="me noopener">{n}<Arrow out /><span class="sr"> (opens in a new tab)</span></a></li>)}<li><a href={MAILTO}>Email<span class="sr"> Thomas (opens your mail app)</span></a></li></ul></div>
+
+    <div class="foot-base">
+      {scripture && <p class="verse">In the beginning, God created the heavens and the earth. Genesis 1:1 ESV</p>}
+      {/* Eastern time, 24 hours, set by site.js; without script it stays hidden (Thomas, 6 November). */}
+      <p class="clock" hidden>CLT <time></time></p>
+      <p class="copyright">© 2026 Thomas Kramer{LEGAL.map(([n, h]) => <> · <a class="legal" href={h}>{n}</a></>)}</p>
+    </div>
+  </div>
+</footer>

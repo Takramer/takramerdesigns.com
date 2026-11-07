@@ -1,0 +1,10 @@
+# No resume page (Thomas, 1 November). Links already sent out to /resume land on About's resume
+# section, where the PDF is.
+/resume /about#resume-h 301
+# The live site's privacy page folds into the Terms of Service (Thomas, 3 November).
+/privacy /terms-of-service#privacy 301
+/terms /terms-of-service 301
+# Spirit of Joy left the projects (Thomas, 4 November); its marks stay on /logos and in One-offs.
+/projects/spirit-of-joy /projects 301
+# Connect became Contact (Thomas, 4 November).
+/connect /contact 301

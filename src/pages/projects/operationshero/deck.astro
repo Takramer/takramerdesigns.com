@@ -1,0 +1,42 @@
+---
+import Base from '../../../layouts/Base.astro'
+import Ending from '../../../components/Ending.astro'
+import Arrow from '../../../components/Arrow.astro'
+import Frame from '../../../components/Frame.astro'
+import { plate } from '../../../lib/img'
+import { BY } from '../../../data/projects'
+
+// The full OperationsHERO pitch deck, linked from the case (Thomas, 6 November). The slides are
+// rendered from Thomas's PDF (Kramer_OperationsHero_CreativeBrief.pdf, October 2024) at 2880 wide.
+const SLIDES: [label: string, alt: string][] = [
+  ['Cover', 'Cover: OperationsHERO Creative Brief, designed by Thomas Kramer, beside a sweep of navy maintenance icons'],
+  ['About OperationsHERO', 'About OperationsHERO. What: computerized maintenance management systems for schools. Who: pioneers in CMMS with an average of 25 years of experience. When: founded in the early 1990s, OperationsHERO launched in 2021. Where: the Cary and Raleigh area, with remote workers all over. Why: a safe, efficient and inspiring space for the growth of the future generation. How: maintenance technicians get the best tools to give the best service.'],
+  ['Expansion', 'Expansion. Problem: OperationsHERO is a niche business-to-business product with a small user base; sales take several sessions and marketing runs on word of mouth. Evolution: reach more people than school officials and maintenance technicians, for exposure, ideas and interest. Audience: flyers and social media bring in a younger audience, and ads in schools show students the people who serve them every day.'],
+  ['Mindmap', 'Mindmap of the company, the ads and the brand refresh. Branding: modern, sleek, minimal, approachable, a brighter palette, new icons and aviation wings. Ads: superheroes and a person with a problem, such as an emperor repairing the Colosseum. Product: work, inventory, planning, events, automation and power.'],
+  ['Advertising', 'Advertising: the square web ad and the magazine ad of the brick-built Colosseum, with a single-sided business card. Ad direction: inspire creativity, call to nostalgia, highlight services.'],
+  ['The logo suite', 'The logo suite: the winged H mark with the OperationsHERO wordmark, the mark alone, and versions in navy, light blue and orange, with the type and the four colors'],
+  ['Components', 'Components: the wings, for North Carolina, the birthplace of flight, split into six sections for the core features; the wrench, the head of a socket wrench; and O-H, a quiet nod to the company name'],
+  ['Patterns', 'Patterns: an icon pattern on light blue, circuit-board traces in navy, and an orange hexagon grid'],
+  ['Packaging and gift', 'Packaging and gift: an orange and white mailer box lined with the icon pattern and the line Become a HERO, and an orange hard hat with the logo'],
+  ['Refreshed icon set', 'Refreshed icon set: work, inventory, planning, events, automation and energy, in outline and filled states, with supporting tool icons'],
+  ['Close', 'Closing slide: Are you ready to Become a HERO'],
+]
+const pics = await Promise.all(SLIDES.map((_, i) => plate(`operationshero/deck/s-${String(i + 1).padStart(2, '0')}.jpg`)))
+---
+<Base title="OperationsHERO pitch deck | TAKramer Designs" description="The full OperationsHERO creative brief Thomas Kramer presented: the company, the audience, the logo suite, patterns, packaging and the icon set." kind="page" page="operationshero" image="og/operationshero.png">
+  <article class="w case">
+    <header class="case-head">
+      <p class="crumb"><a class="back" href="/projects/operationshero"><Arrow back /><span class="sr">Back to OperationsHERO</span></a><span class="num">{BY.operationshero.num}</span></p>
+      <h1 class="title"><span class="t"><Ending text="Pitch deck" /></span></h1>
+    </header>
+    <p class="lede deck-lede">The OperationsHERO creative brief Thomas presented in October 2024, all {SLIDES.length} slides.</p>
+    <section class="gallery" aria-label="Slides">
+      {SLIDES.map(([label, alt], k) => (
+        <figure class="plate full">
+          <div class="shots one"><span class="shot" style={`--r: ${(pics[k].width / pics[k].height).toFixed(4)}`}><Frame pic={pics[k]} alt={alt} sizes="(min-width: 900px) 84vw, 100vw" cls="rule" lazy={k > 0} /></span></div>
+          <figcaption><span class="num">{String(k + 1).padStart(2, '0')}</span> {label}</figcaption>
+        </figure>
+      ))}
+    </section>
+  </article>
+</Base>

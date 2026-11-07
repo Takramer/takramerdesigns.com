@@ -1,0 +1,61 @@
+---
+import Base from '../layouts/Base.astro'
+import Ending from '../components/Ending.astro'
+import Frame from '../components/Frame.astro'
+import Record from '../components/Record.astro'
+import Usage from '../components/Usage.astro'
+import { SITE, RESUME_PDF } from '../data/site'
+import { pic } from '../lib/img'
+
+// About (07 5.7; 10-copy 3): the portrait at a modest size, uncovering once; the one place the
+// site names legal blindness; what he believes, in his three words and his order; the record.
+const portrait = await pic('portrait.jpg', [400, 800])
+const profile = { '@type': 'ProfilePage', '@id': `${SITE}/about#page`, url: `${SITE}/about`, name: 'About', mainEntity: { '@id': `${SITE}/#thomas` } }
+---
+<Base
+  title="About | TAKramer Designs"
+  description="Thomas Kramer is a legally blind brand and product designer who has run TAKramer Designs since 2021. He holds a BFA in Graphic Design from UNC Charlotte and works with AI tools every day, Claude Code most of all."
+  page="about"
+  image="portrait.jpg"
+  graph={[profile]}
+>
+  <div class="w">
+    <header class="grid about-head">
+      <figure class="portrait"><Frame pic={portrait} alt="Thomas Kramer in a dark suit and sunglasses" sizes="(min-width: 900px) 24vw, 50vw" ratio="4 / 5" lazy={false} /></figure>
+      <div>
+        <h1 class="title"><span class="t"><Ending text="Precision Obsession" /></span></h1>
+        <p class="lede">Thomas Kramer is a brand and product designer who builds what he designs. He has run TAKramer Designs since January 2021, and in 2026 he designed and built two web apps on his own, Underline and Nydex.</p>
+        {/* I13: reading size, a slider. Script only. */}
+        <div class="rs" hidden>
+          <label class="rs-b"><span>Reading size</span><input type="range" min="100" max="200" step="5" value="100" /><output>100%</output></label>
+        </div>
+      </div>
+    </header>
+    <div class="prose">
+      <section aria-labelledby="sees-h">
+        <h2 id="sees-h">How he sees</h2>
+        <div><p>Thomas was born with <a href="https://albinism.org/about-albinism/">albinism</a> and is legally blind. Faint grays and crowded layouts are hard work for his eyes, so he builds hierarchy on purpose, with strong contrast and nothing extra. Up close, past 400% zoom, he checks alignment and anchor points; pulled back, he checks the reading order. Those same choices make his work easier for everyone else to read.</p></div>
+      </section>
+      <section aria-labelledby="believes-h">
+        <h2 id="believes-h">What he believes</h2>
+        <div>
+          <h3>Function</h3>
+          <p>A design should answer a reader’s questions before they ask. An investor reading a filing in Underline, or a first-time visitor to Grace One Church, should find what they came for without hunting.</p>
+          <h3>Intention</h3>
+          <p>Thomas’s Christian faith shapes how he works; he treats each project as stewardship, with honesty toward the client and care for the people who use the result. His inspiration comes from the original Creator.</p>
+          <h3>Precision</h3>
+          <p>Every deliverable follows rules he can repeat, whether it is a web app or a screen-printed shirt. Grids and exact anchor points come first, so each visual choice rests on something he can measure.</p>
+        </div>
+      </section>
+      <Record />
+      <Usage />
+      <section aria-labelledby="resume-h">
+        <h2 id="resume-h">Resume</h2>
+        <div>
+          <p>His full record on one page. PDF, updated October 2026.</p>
+          <a class="button" href={RESUME_PDF} download>Download resume<span class="sr"> (PDF)</span></a>
+        </div>
+      </section>
+    </div>
+  </div>
+</Base>

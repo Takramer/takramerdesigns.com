@@ -1,0 +1,13 @@
+---
+import { JOIN } from '../lib/text'
+// A title's last word and its point, in one span that never breaks: the point is the full stop, so
+// it never starts a line (research/20, section 15). Screen readers hear a plain full stop.
+// A run-together name (OperationsHERO) may break where its parts meet, so only its last part travels
+// with the point: whole, it is 7.9 em, wider than any phone column at 56 px.
+const { text } = Astro.props as { text: string }
+const t = text.replace(/\.$/, '')
+const i = t.lastIndexOf(' ')
+const last = t.slice(i + 1)
+const join = last.match(JOIN)
+---
+{i >= 0 ? t.slice(0, i + 1) : ''}{join && join[1]}{join && <wbr />}<span class="nw">{join ? join[2] : last}<span class="sr">.</span><span class="point" aria-hidden="true"></span></span>

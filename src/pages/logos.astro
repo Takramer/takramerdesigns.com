@@ -1,0 +1,61 @@
+---
+import Base from '../layouts/Base.astro'
+import Ending from '../components/Ending.astro'
+import Arrow from '../components/Arrow.astro'
+import { EMAIL, SITE } from '../data/site'
+import { mark } from '../lib/marks'
+
+// Logos (10-copy 4.3): each mark in its own cell, in the live page's order. Pressing one zooms it to
+// 400% where it was pressed and shows how it is drawn: the outline and every anchor point (site.js).
+// A note says Concept (no client) or For sale; no note means the mark is live (Thomas, 1 November).
+// A mark for sale carries a mail link with its name in the subject (Thomas, 2 November).
+const LOGOS: [slug: string, name: string, note?: string][] = [
+  ['hcw', 'Healthy Campus Week'],
+  ['polarplunge', 'Polar Plunge'],
+  ['soj', 'Spirit of Joy'],
+  ['aapihm', 'AAPI Heritage Month'],
+  ['goodword', 'Good Word'],
+  ['lunchtablesports', 'LunchTable Sports Media', 'Concept'],
+  ['operationshero', 'OperationsHERO', 'Concept'],
+  ['lybw', 'Love Your Body Week'],
+  ['hihtec', 'Hand in Hand Teens Encounter Christ'],
+  ['tfs', 'The Flavor Scroll'],
+  ['radixchurch', 'Radix Church', 'For sale'],
+  ['repperset', 'Rep Per Set', 'For sale'],
+  ['nydex', 'Nydex'],
+  ['owloptics', 'Owl Optics', 'For sale'],
+  ['gradientrail', 'Gradient Rail'],
+]
+const marks = LOGOS.map(([slug, name, note]) => ({ name, note, ...mark(slug) }))
+const list = {
+  '@type': 'ItemList',
+  '@id': `${SITE}/logos#list`,
+  name: 'Logos',
+  numberOfItems: marks.length,
+  itemListElement: marks.map((m, i) => ({ '@type': 'ListItem', position: i + 1, name: m.name })),
+}
+---
+<Base
+  title="Logos | TAKramer Designs"
+  description="Fifteen logos by Thomas Kramer, for clients and for his own brands. Zoom any mark to 400% to see its outline and every anchor point."
+  page="logos"
+  graph={[list]}
+>
+  <div class="w page-head">
+    <p class="crumb"><a class="up" href="/projects"><Arrow back /><span>Work</span></a></p>
+    <h1 class="title"><span class="t"><Ending text="Logos" /></span></h1>
+    <p class="intro-line">Fifteen marks, drawn for clients and for his own brands. <span class="fine">Press one to see it at 400% with its anchor points, then drag or use the arrow keys to look around.</span><span class="coarse">Tap one to see it at 400% with its anchor points, then drag to look around.</span></p>
+    <ul class="marks">
+      {marks.map((m) => (
+        <li>
+          <button class="lens" type="button" aria-pressed="false" data-n={m.count}>
+            <svg viewBox={m.box} aria-hidden="true" focusable="false"><g class="zoom"><g transform={m.shift}>{m.paths.map((d) => <path class="ink" d={d} pathLength="1" />)}<path class="anchors" d={m.anchors} /></g></g></svg>
+            <span class="pct" aria-hidden="true">100%</span>
+            <span class="sr">{m.name} at 400%</span>
+          </button>
+          <p class="mk-cap"><span class="n">{m.name}</span>{m.note && <span class="c">{m.note}</span>}{m.note === 'For sale' && <a class="ask-mark" href={`mailto:${EMAIL}?subject=${encodeURIComponent(`Buying the ${m.name} mark`)}`}>Ask about this mark<span class="sr"> (opens your mail app)</span></a>}</p>
+        </li>
+      ))}
+    </ul>
+  </div>
+</Base>

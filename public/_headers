@@ -1,0 +1,17 @@
+# Hashed files never change, so the wall's thumbnails come from the cache with no round trip and the
+# case hero's stand-in costs nothing (research/20, section 7). Fonts keep fixed names: rename to bust.
+/_astro/*
+  Cache-Control: public, max-age=31536000, immutable
+/fonts/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Security headers for every page (C0 step 3). No script-src rule: the site's own scripts, the
+# speculation rules, Cloudflare's analytics beacon and the preview builds' Agentation island all
+# load as they do now; these rules only stop framing, plugins, sniffing and stray referrers.
+/*
+  Strict-Transport-Security: max-age=31536000
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+  Content-Security-Policy: frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'
+  X-Frame-Options: DENY

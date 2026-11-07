@@ -1,0 +1,100 @@
+---
+import Base from '../layouts/Base.astro'
+import Ending from '../components/Ending.astro'
+import Arrow from '../components/Arrow.astro'
+import { SITE } from '../data/site'
+import { pic, source, SIZES } from '../lib/img'
+import items from '../data/one-offs.json'
+
+// One-offs (10-copy 4.2): the pieces too small for a case study, each in its own proportions. On a
+// wide screen they lie on the light table, a plane to drag around (07 5.6; site.js); the Grid button
+// turns it into columns, the view below 900 px, under reduced motion and without script. A press
+// opens the viewer, which shows a piece at no more than half its pixel width, so a 2x screen gets
+// every pixel and none is blown up.
+const pieces = await Promise.all(items.map(async (it) => {
+  const s = source(`one-offs/${it.file}`)
+  const [t, f] = await Promise.all([pic(`one-offs/${it.file}`, [480, 960]), pic(`one-offs/${it.file}`, [1200, 2400])])
+  return { ...it, w: s.width, h: s.height, t, f }
+}))
+// A set (N10): pieces that share one concept show as one tile, where its first piece sat. The
+// viewer steps through the set; on the light table its pieces sit together under one label.
+const NOUN: Record<string, string> = { Megapack: 'sales deck slides', Cybercab: 'ads', Morningstar: 'website screens', 'American Supremacy': 'web and social pieces', NextWork: 'share images', 'Lunchtable Sports': 'logos', 'Polar Plunge': 'apparel pieces', 'Radix Church': 'social pieces' }
+// I9 (review round 6): the pieces made for a press, which the viewer can split into their plates.
+const PRINT = /Poster|Newspaper|Book jacket|Signage|Magazine/
+const tiles: { set?: string, kind: string, ps: typeof pieces }[] = []
+for (const p of pieces) {
+  const t = p.set && tiles.find((x) => x.set === p.set)
+  if (t) t.ps.push(p)
+  else tiles.push({ set: p.set, kind: p.type, ps: [p] })
+}
+for (const t of tiles) if (t.set) t.kind = `${t.ps.every((p) => p.type.startsWith('Concept')) ? 'Concept · ' : ''}${t.ps.length} ${NOUN[t.set] ?? 'pieces'}`
+const list = {
+  '@type': 'ItemList',
+  '@id': `${SITE}/one-offs#list`,
+  name: 'One-offs',
+  numberOfItems: pieces.length,
+  itemListElement: pieces.map((p, i) => ({ '@type': 'ListItem', position: i + 1, name: p.title })),
+}
+---
+<Base
+  title="One-offs | TAKramer Designs"
+  description="Ads, posters, covers and posts by Thomas Kramer, 45 in all, too small for a full case study. Pieces made without a client say Concept."
+  page="one-offs"
+  image="one-offs/01.jpg"
+  graph={[list]}
+>
+  <div class="w page-head">
+    <p class="crumb"><a class="up" href="/projects"><Arrow back /><span>Work</span></a></p>
+    <h1 class="title"><span class="t"><Ending text="One-offs" /></span></h1>
+    <div class="oo-head">
+      <p class="intro-line">Ads, posters, covers and posts, {pieces.length} in all, too small for a full case study. Pieces made without a client say Concept.</p>
+      <button class="view" type="button" aria-label="Show as a table" hidden><span>Table</span></button>
+    </div>
+  </div>
+  <div class="w board" data-view="grid">
+    {/* Lighthouse, 5 November: the table took over 20 ms after the first paint and moved the whole board
+        (layout shift 0.64). Pick the view before the board paints; site.js then wires it up. */}
+    <script is:inline>document.currentScript.parentElement.dataset.view = matchMedia('(min-width: 900px)').matches && !matchMedia('(prefers-reduced-motion: reduce)').matches ? 'table' : 'grid'</script>
+    <div class="plane">
+    <ul class="pieces">
+      {tiles.map((t, i) => t.set ? (
+        <li class:list={['set', t.ps.length > 6 && 'deck']}>
+          <p class="pc"><span class="n">{t.set}</span><span class="c">{t.kind}</span></p>
+          <div class="set-ps">
+            {t.ps.map((p, j) => (
+              <a class="piece" href={p.f.src} data-srcset={p.f.srcset} data-w={p.w} data-h={p.h} data-n={p.title} data-c={p.type}>{j === 0 && <span class="set-n" aria-hidden="true">{t.ps.length}</span>}<span class="sr">{t.set}, {j + 1} of {t.ps.length}: </span><img src={p.t.src} srcset={p.t.srcset} sizes={SIZES.piece} alt={p.alt} width={p.t.width} height={p.t.height} loading={i < 8 && j === 0 ? undefined : 'lazy'} decoding="async" /></a>
+            ))}
+          </div>
+        </li>
+      ) : (
+        <li>
+          <a class="piece" href={t.ps[0].f.src} data-srcset={t.ps[0].f.srcset} data-w={t.ps[0].w} data-h={t.ps[0].h} data-print={PRINT.test(t.ps[0].type) ? '' : undefined}><img src={t.ps[0].t.src} srcset={t.ps[0].t.srcset} sizes={SIZES.piece} alt={t.ps[0].alt} width={t.ps[0].t.width} height={t.ps[0].t.height} loading={i < 8 ? undefined : 'lazy'} decoding="async" /></a>
+          <p class="pc"><span class="n">{t.ps[0].title}</span><span class="c">{t.ps[0].type}</span></p>
+        </li>
+      ))}
+    </ul>
+    </div>
+    <p class="hint" aria-hidden="true"><span class="fine">Drag to look around. Pinch or use + and - to zoom. Press a piece to open it.</span><span class="coarse">Drag to look around. Tap a piece to open it.</span></p>
+    <p class="zoom">
+      <button type="button" data-zoom="1" aria-label="Zoom in"><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" focusable="false"><path d="M1 6H11M6 1V11" fill="none" stroke="currentColor" stroke-width="1.5" /></svg></button>
+      <span aria-hidden="true">100%</span>
+      <button type="button" data-zoom="-1" aria-label="Zoom out"><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" focusable="false"><path d="M1 6H11" fill="none" stroke="currentColor" stroke-width="1.5" /></svg></button>
+    </p>
+    <p class="pan">{([['up', '0,-1', 180], ['left', '-1,0', 90], ['down', '0,1', 0], ['right', '1,0', -90]] as const).map(([d, v, deg]) => (
+      <button type="button" class={d} data-pan={v} aria-label={`Pan ${d}`}><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" focusable="false" style={`rotate: ${deg}deg`}><path d="M1.5 6 6 10.5 10.5 6M6 10.5V0.5" fill="none" stroke="currentColor" stroke-width="1.5" /></svg></button>
+    ))}</p>
+  </div>
+  <dialog class="viewer" aria-labelledby="v-n" tabindex="-1">
+    <div class="v-top">
+      <p class="v-count"><span class="v-s"></span><span class="sr">Piece </span><span class="num v-i">01</span><span class="v-pt" aria-hidden="true"></span><span class="sr"> of </span><span class="num v-t">{tiles.length}</span></p>
+      <p class="v-nav">
+        <button type="button" class="v-press" aria-pressed="false" hidden><span>Press check</span></button>
+        <button type="button" data-go="-1" aria-label="Previous piece"><b class="ic prev" aria-hidden="true"><i></i><i></i><i></i></b><span>Previous</span></button>
+        <button type="button" data-go="1" aria-label="Next piece"><span>Next</span><b class="ic next" aria-hidden="true"><i></i><i></i><i></i></b></button>
+        <button type="button" data-close><span>Close</span><b class="ic x" aria-hidden="true"><i></i><i></i><i></i></b></button>
+      </p>
+    </div>
+    <div class="v-stage"></div>
+    <p class="v-cap" aria-live="polite"><span class="c"></span><span class="n" id="v-n"></span></p>
+  </dialog>
+</Base>

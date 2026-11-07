@@ -1,0 +1,11 @@
+---
+import type { Pic } from '../lib/img'
+// An image that uncovers once as it comes into view (07 rule 3; site.js). The frame holds its
+// ratio, so nothing moves while the file loads. i staggers a row, 60 ms a step. With a video, the
+// still is its poster and the clip plays over it, muted, while in view; Pause stops it (site.js).
+// A film (P3) waits on its poster until pressed; reduced motion and no script show the poster alone.
+interface Props { pic: Pic; alt: string; sizes: string; ratio?: string; i?: number; lazy?: boolean; cls?: string; video?: string; film?: boolean }
+const { pic, alt, sizes, ratio, i = 0, lazy = true, cls, video, film } = Astro.props
+const style = `aspect-ratio: ${ratio ?? `${pic.width} / ${pic.height}`}${i ? `; --i: ${i}` : ''}`
+---
+<span class:list={['frame', 'uncover', cls, video && 'clip', film && 'film']} style={style}><span class="mover"><span class="counter"><img src={pic.src} srcset={pic.srcset} sizes={sizes} alt={alt} width={pic.width} height={pic.height} loading={lazy ? 'lazy' : undefined} decoding="async" />{video && <video src={video} muted loop playsinline preload="none" aria-hidden="true" tabindex="-1" />}</span></span>{video && (film ? <button type="button" class="clip-btn" aria-pressed="false"><span>Play</span><b class="sr"> the film</b></button> : <button type="button" class="clip-btn" aria-pressed="false">Pause</button>)}</span>

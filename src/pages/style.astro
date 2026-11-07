@@ -1,0 +1,263 @@
+---
+import Base from '../layouts/Base.astro'
+import { CURVE, TOKEN } from '../data/motion'
+import Ending from '../components/Ending.astro'
+import horizontalSvg from '../assets/takd-logo.svg?raw'
+import fullSvg from '../assets/takd-mark.svg?raw'
+import monoSvg from '../assets/takd-monogram.svg?raw'
+
+// Style guide (N8, Thomas, 2 November; drawn as a sheet 5 November, with his three logos in ink and
+// reversed). Numbers come from site.css; the contrast ratios are WCAG 2 on each ground. Logo rules
+// and smallest sizes come from brand/style-page-copy.md (14 October).
+const inner = (svg: string) => {
+  const box = svg.match(/viewBox="([^"]+)"/)![1]
+  const body = svg.replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '').replace(/<defs>[\s\S]*?<\/defs>/g, '')
+    .replace(/<!--[\s\S]*?-->/g, '').replace(/\s(?:class|id|data-name|fill)="[^"]*"/g, '').replace(/\s+/g, ' ').trim()
+  const [, , w, h] = box.split(/\s+/).map(Number)
+  return { box, body, ratio: w / h }
+}
+// [name, svg, use, smallest height in px, letter height as a share of the mark's height]
+const LOGOS = [
+  { id: 'horizontal', name: 'Horizontal', ...inner(horizontalSvg), min: 16, letter: 1,
+    use: 'The four initials in one row. For the site header, signatures and any space wider than it is tall.' },
+  { id: 'full', name: 'Full mark', ...inner(fullSvg), min: 48, letter: 45.5 / 99,
+    use: 'The initials beside his four tool icons. For covers, the About page and print, where it has room to be read in full.' },
+  { id: 'mono', name: 'Monogram', ...inner(monoSvg), min: 32, letter: 45.5 / 99,
+    use: 'TA over KD, cut from the full mark. For square spaces: avatars, the favicon and stamps.' },
+]
+const clear = LOGOS[0]
+const COLORS: [name: string, v: string, role: string, ratio: string, on: 'ink' | 'paper'][] = [
+  ['Paper', '#F6F6F3', 'The main ground', '', 'ink'],
+  ['Stone', '#EEECE7', 'The second ground, for logo cells and images still loading', '', 'ink'],
+  ['Ink', '#141414', 'Text, rules and marks', '17.0:1 on paper, 15.6:1 on stone', 'paper'],
+  ['Ink 2', '#504E4A', 'Captions and secondary text', '7.7:1 on paper, 7.0:1 on stone', 'paper'],
+  ['Ink 3', '#6D6B67', 'Quiet text; passes WCAG AA at any size', '4.9:1 on paper, 4.5:1 on stone', 'paper'],
+  ['Orange', '#EF5714', 'Markers only, like this square. Never a fill or a text color', '3.2:1 on paper, 2.9:1 on stone', 'ink'],
+]
+const TYPE: [cls: string, name: string, role: string, sample: string][] = [
+  ['t-display', 'Endless', 'Display: page titles, project names and section heads', 'Precision Obsession'],
+  ['t-sans', 'Geist', 'Body and interface text, 1.125 rem on 1.75 rem', 'Thomas Kramer is a brand and product designer who builds what he designs.'],
+  ['t-serif', 'Geist Serif, Square cut', 'Case study text; every full stop is a small square, like an anchor point', 'He drew every mark at 400% first.'],
+  ['t-mono', 'Geist Mono', 'Figures and facts, with tabular numerals', '0123456789'],
+]
+// The motion curve from src/data/motion.ts, drawn on a 240 unit square with y up.
+const [x1, y1, x2, y2] = CURVE.match(/[\d.]+/g)!.map(Number)
+const S = 240, P1 = [x1 * S, (1 - y1) * S], P2 = [x2 * S, (1 - y2) * S]
+---
+<Base
+  title="Style guide | TAKramer Designs"
+  description="The logo, color, type, grid and motion rules behind takramerdesigns.com, by Thomas Kramer."
+  page="style"
+  ask={false}
+>
+  <div class="w">
+    <header class="page-head">
+      <h1 class="title"><span class="t"><Ending text="Style guide" /></span></h1>
+      <p class="intro-line">The rules this site is built on: three logos, six colors, four typefaces, one grid and one motion curve.</p>
+    </header>
+
+    <section class="sg" aria-labelledby="logo-h">
+      <header class="sg-h"><span class="num">01</span><h2 id="logo-h">Logo</h2><p>Three logos, one set of initials. The four tool icons belong to the full mark and never stand alone.</p></header>
+      <ul class="logos">
+        {LOGOS.map((l) => (
+          <li class:list={['logo', l.id]}>
+            <div class="pair">
+              <div class="cell on-stone"><svg viewBox={l.box} fill="currentColor" role="img" aria-label={`${l.name}, ink on stone`} set:html={l.body} /></div>
+              <div class="cell on-ink"><svg viewBox={l.box} fill="currentColor" role="img" aria-label={`${l.name}, paper on ink`} set:html={l.body} /></div>
+            </div>
+            <h3>{l.name}</h3>
+            <p class="use">{l.use}</p>
+            <p class="min"><span class="num">Smallest</span><svg class="at-min" viewBox={l.box} fill="currentColor" aria-hidden="true" style={`height:${l.min}px;width:${(l.min * l.ratio).toFixed(1)}px`} set:html={l.body} /><span class="num">{l.min} px tall</span></p>
+          </li>
+        ))}
+      </ul>
+      <div class="rules">
+        <figure class="clear">
+          <div class="clear-art" style={`--r:${clear.ratio}`}>
+            <span class="zone" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+            <svg viewBox={clear.box} fill="currentColor" role="img" aria-label="The horizontal logo inside its clear space" set:html={clear.body} />
+          </div>
+          <figcaption>Clear space on every side is half the height of one letter. Nothing else enters the dashed line.</figcaption>
+        </figure>
+        <ul class="dont">
+          <li>Ink on paper or stone, or paper on ink. Nothing else.</li>
+          <li>Never orange, never a gradient, never an outline.</li>
+          <li>Never stretch, rotate or redraw the letters. Scale the file as it is.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="sg" aria-labelledby="color-h">
+      <header class="sg-h"><span class="num">02</span><h2 id="color-h">Color</h2><p>A monochrome frame with one signal. Project images keep their own brand colors; the frame around them stays neutral.</p></header>
+      <ul class="swatches">
+        {COLORS.map(([n, v, role, ratio, on]) => (
+          <li class:list={['sw', `on-${on}`, { marker: n === 'Orange' }]} style={n === 'Orange' ? undefined : `background:${v}`}>
+            <span class="sw-n">{n}</span>
+            <span class="sw-v">{v}</span>
+            <span class="sw-r">{role}</span>
+            {ratio && <span class="sw-c">{ratio}</span>}
+          </li>
+        ))}
+      </ul>
+    </section>
+
+    <section class="sg" aria-labelledby="type-h">
+      <header class="sg-h"><span class="num">03</span><h2 id="type-h">Type</h2><p>Four typefaces, each with one job. Every size is set in rem on a 16 px root, so it follows the reader’s own text size. Nothing is smaller than 0.6875 rem, 11 px at the default size.</p></header>
+      <ul class="specimens">
+        {TYPE.map(([cls, n, role, sample]) => (
+          <li><div class="sp-k"><p class="sp-n">{n}</p><p class="sp-r">{role}</p></div><p class={cls}>{sample}</p></li>
+        ))}
+      </ul>
+    </section>
+
+    <section class="sg" aria-labelledby="grid-h">
+      <header class="sg-h"><span class="num">04</span><h2 id="grid-h">Grid</h2><p>Twenty-four columns with a 16 px gutter, 24 px from 1920 px wide. The outer margin steps with the window: 16 px on a phone, 32 px to 899 px, 40 px to 1279 px, 56 px above that and 72 px from 1920 px. On a phone every part spans the full width.</p></header>
+      <div class="cols" aria-hidden="true">{Array.from({ length: 24 }, (_, i) => <span><b class="num">{i + 1}</b></span>)}</div>
+      <p class="cols-note">The columns above are this page’s own grid at this width; on a phone the gutters close. Containers have square corners and no shadows; a 1 px ink rule separates sections where a line is needed.</p>
+    </section>
+
+    <section class="sg" aria-labelledby="motion-h">
+      <header class="sg-h"><span class="num">05</span><h2 id="motion-h">Motion</h2><p>{`One curve and one length: ${TOKEN.desktop} ms on a desktop, ${TOKEN.phone} ms on a phone, for the move between pages, the cover row and the phone menu. Small parts run shorter: 120 ms for a press, 180 ms for the Work menu. Scrolling is never taken over. With reduced motion turned on, nothing moves.`}</p></header>
+      <div class="motion">
+        <figure class="curve">
+          <svg viewBox={`-16 -16 ${S + 32} ${S + 32}`} role="img" aria-label={`The curve ${CURVE}: it leaves fast and settles slowly`}>
+            <path class="axis" d={`M0 0V${S}H${S}`} />
+            <path class="handle" d={`M0 ${S}L${P1[0]} ${P1[1]}M${S} 0L${P2[0]} ${P2[1]}`} />
+            <path class="line" d={`M0 ${S}C${P1[0]} ${P1[1]} ${P2[0]} ${P2[1]} ${S} 0`} />
+            <rect class="anchor" x="-3" y={S - 3} width="6" height="6" /><rect class="anchor" x={S - 3} y="-3" width="6" height="6" />
+            <rect class="hp" x={P1[0] - 2.5} y={P1[1] - 2.5} width="5" height="5" /><rect class="hp" x={P2[0] - 2.5} y={P2[1] - 2.5} width="5" height="5" />
+          </svg>
+          <figcaption class="num">{CURVE}</figcaption>
+        </figure>
+        <div class="run-demo">
+          <div class="track"><span class="dot"></span></div>
+          <button class="button sg-play" type="button" aria-pressed="false">Play the curve</button>
+          <p class="num run-t"><span class="d">{TOKEN.desktop} ms</span><span class="m">{TOKEN.phone} ms</span></p>
+        </div>
+      </div>
+    </section>
+  </div>
+</Base>
+
+<script>
+  const b = document.querySelector<HTMLButtonElement>('.sg-play')
+  b?.addEventListener('click', () => {
+    const on = b.getAttribute('aria-pressed') !== 'true'
+    b.setAttribute('aria-pressed', String(on))
+    b.closest('.run-demo')!.classList.toggle('moved', on)
+  })
+</script>
+
+<style>
+  ul { margin: 0; padding: 0; list-style: none; }
+  .sg { padding-block: 48px 96px; border-top: 1px solid var(--ink); }
+  .sg:first-of-type { margin-top: 120px; }
+  .sg-h { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); column-gap: var(--g); align-items: baseline; margin-bottom: 48px; }
+  .sg-h .num { grid-column: 1 / 2; }
+  .sg-h h2 { grid-column: 2 / 8; font: 400 2rem/2.25rem var(--display); letter-spacing: var(--tr-endless); }
+  .sg-h p { grid-column: 8 / 20; max-width: var(--measure); color: var(--ink2); }
+
+  /* 01 Logo: each logo in ink on stone and reversed on ink, then its smallest size at true pixels. */
+  .logos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 48px var(--g); }
+  .logo { min-width: 0; }
+  .cell { position: relative; aspect-ratio: 3 / 2; }
+  .cell svg { position: absolute; inset: 22% 16%; width: 68%; height: 56%; }
+  .on-stone { background: var(--stone); color: var(--ink); }
+  .on-ink { background: var(--ink); color: var(--paper); }
+  .logo h3 { margin-top: 16px; font: 400 1.5rem/1.75rem var(--display); letter-spacing: var(--tr-endless); }
+  .use { margin-top: 8px; font-size: 0.9375rem; line-height: 1.5rem; color: var(--ink2); max-width: 30rem; }
+  .min { display: flex; align-items: center; gap: 12px; margin-top: 16px; padding-top: 12px; border-top: 1px solid color-mix(in srgb, var(--ink) 18%, transparent); }
+  .at-min { flex: none; }
+  .rules { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); column-gap: var(--g); margin-top: 72px; align-items: start; }
+  .clear { grid-column: 1 / 13; margin: 0; }
+  /* The dashed box sits half a letter out from the logo; the four corners carry orange anchor points. */
+  .clear-art { position: relative; display: grid; place-items: center; aspect-ratio: 2 / 1; background: var(--stone); }
+  .clear-art svg { position: relative; width: 50%; height: auto; display: block; }
+  .zone { position: absolute; left: 50%; top: 50%; width: calc(50% + 50% / var(--r)); aspect-ratio: calc(var(--r) + 1) / 2; translate: -50% -50%; border: 1px dashed var(--ink); }
+  .zone i { position: absolute; width: 6px; height: 6px; margin: -3.5px; background: var(--orange); }
+  .zone i:nth-child(1) { left: 0; top: 0; } .zone i:nth-child(2) { right: 0; top: 0; margin-right: -3.5px; }
+  .zone i:nth-child(3) { left: 0; bottom: 0; margin-bottom: -3.5px; } .zone i:nth-child(4) { right: 0; bottom: 0; margin: 0 -3.5px -3.5px 0; }
+  .clear figcaption { margin-top: 12px; font-size: 0.9375rem; line-height: 1.5rem; color: var(--ink2); }
+  .dont { grid-column: 14 / 25; display: grid; gap: 0; border-top: 1px solid var(--ink); }
+  .dont li { padding-block: 16px; border-bottom: 1px solid var(--ink); font-size: 1.125rem; line-height: 1.75rem; }
+
+  /* 02 Color: six swatches edge to edge; each shares its hairline with the next. */
+  .swatches { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); border: 1px solid var(--ink); }
+  .sw { display: flex; flex-direction: column; justify-content: flex-end; gap: 4px; min-height: 22rem; padding: 16px; }
+  .sw + .sw { border-left: 1px solid var(--ink); }
+  .sw.on-ink { color: var(--ink); } .sw.on-paper { color: var(--paper); }
+  .sw.marker { position: relative; background: var(--paper); }
+  .sw.marker::before { content: ''; position: absolute; top: 16px; left: 16px; width: 0.5rem; height: 0.5rem; background: var(--orange); }
+  .sw-n { font: 400 1.5rem/1.75rem var(--display); letter-spacing: var(--tr-endless); }
+  .sw-v, .sw-c { font-family: var(--mono); font-size: 0.8125rem; line-height: 1.25rem; font-variant-numeric: tabular-nums; }
+  .sw-r { font-size: 0.875rem; line-height: 1.25rem; }
+
+  /* 03 Type: the name and its job on the left, the face at size on the right. */
+  .specimens li { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); column-gap: var(--g); align-items: baseline; padding-block: 32px; border-top: 1px solid var(--ink); }
+  .specimens li:last-child { border-bottom: 1px solid var(--ink); }
+  .sp-k { grid-column: 1 / 8; }
+  .specimens li > p { grid-column: 8 / 25; }
+  .sp-n { font-size: 1.125rem; line-height: 1.75rem; }
+  .sp-r { font-size: 0.875rem; line-height: 1.25rem; color: var(--ink2); max-width: 20rem; }
+  .t-display { font: 400 clamp(3rem, 7vw, 7.5rem)/0.95 var(--display); letter-spacing: var(--tr-endless); }
+  .t-sans { font-family: var(--sans); font-size: clamp(1.5rem, 2.4vw, 2.25rem); line-height: 1.3; max-width: 34ch; }
+  .t-serif { font-family: var(--serif); font-size: clamp(1.75rem, 3vw, 3rem); line-height: 1.2; }
+  .t-mono { font-family: var(--mono); font-size: clamp(2rem, 4.5vw, 4.5rem); line-height: 1; font-variant-numeric: tabular-nums; }
+
+  /* 04 Grid: the real 24 columns, drawn with the page's own gutter. */
+  .cols { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); column-gap: var(--g); height: 12rem; }
+  .cols span { position: relative; background: var(--stone); border-inline: 1px solid color-mix(in srgb, var(--ink) 18%, transparent); }
+  .cols b { position: absolute; left: 0; right: 0; bottom: 8px; font-weight: 400; text-align: center; }
+  .cols-note { margin-top: 16px; max-width: var(--measure); font-size: 0.9375rem; line-height: 1.5rem; color: var(--ink2); }
+
+  /* 05 Motion: the curve with its handles; orange marks only the two anchor points. */
+  .motion { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); column-gap: var(--g); align-items: center; }
+  .curve { grid-column: 1 / 9; margin: 0; padding: 24px; background: var(--stone); }
+  .curve svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .curve path { fill: none; vector-effect: non-scaling-stroke; }
+  .axis { stroke: color-mix(in srgb, var(--ink) 30%, transparent); stroke-width: 1; }
+  .handle { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 3 3; }
+  .line { stroke: var(--ink); stroke-width: 2; }
+  .anchor { fill: var(--orange); }
+  .hp { fill: var(--paper); stroke: var(--ink); stroke-width: 1; vector-effect: non-scaling-stroke; }
+  .curve figcaption { margin-top: 16px; }
+  .run-demo { grid-column: 10 / 25; display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: 16px; row-gap: 24px; }
+  .track { grid-column: 1 / -1; position: relative; height: 3rem; border-bottom: 1px solid var(--ink); }
+  .dot { position: absolute; left: 0; bottom: 0; width: 3rem; height: 3rem; background: var(--ink); transition: left var(--vt) var(--ease), translate var(--vt) var(--ease); }
+  .moved .dot { left: 100%; translate: -100% 0; }
+  :global(html.still) .dot { transition: none; }
+  .run-t .m { display: none; }
+  @media (max-width: 899px) { .run-t .d { display: none; } .run-t .m { display: inline; } }
+
+  @media (max-width: 1279px) {
+    .swatches { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .sw:nth-child(4) { border-left: 0; }
+    .sw:nth-child(n + 4) { border-top: 1px solid var(--ink); }
+    .sw { min-height: 16rem; }
+  }
+  @media (max-width: 899px) {
+    .logos { grid-template-columns: minmax(0, 1fr); max-width: 34rem; }
+    .sg-h h2 { grid-column: 2 / 12; }
+    .sg-h p { grid-column: 1 / -1; margin-top: 16px; }
+    .clear, .dont { grid-column: 1 / -1; }
+    .dont { margin-top: 32px; }
+    .sp-k, .specimens li > p { grid-column: 1 / -1; }
+    .specimens li > p { margin-top: 16px; }
+    .curve, .run-demo { grid-column: 1 / -1; }
+    .curve { max-width: 22rem; }
+    .run-demo { margin-top: 32px; }
+  }
+  @media (max-width: 599px) {
+    .sg-h, .rules, .specimens li, .motion { column-gap: 0; }
+    .sg-h .num { grid-column: 1 / 3; white-space: nowrap; }
+    .sg-h h2 { grid-column: 3 / -1; }
+    .swatches { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .sw:nth-child(n) { border-left: 0; border-top: 0; }
+    .sw:nth-child(even) { border-left: 1px solid var(--ink); }
+    .sw:nth-child(n + 3) { border-top: 1px solid var(--ink); }
+    .sw { min-height: 13rem; padding: 12px; }
+    .cols { column-gap: 0; height: 8rem; }
+    .cols b { display: none; }
+    .sg:first-of-type { margin-top: 64px; }
+  }
+</style>

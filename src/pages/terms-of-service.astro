@@ -1,0 +1,78 @@
+---
+import Base from '../layouts/Base.astro'
+import Ending from '../components/Ending.astro'
+import { EMAIL, MAILTO } from '../data/site'
+
+// Terms of Service (N8): the live site's text of 7 October 2026, at its live URL, linked only from
+// the footer's last line (Thomas, 3 November). The live privacy page folds into the last section:
+// the visit counter sets no cookie and stores no ID (N14), and the Figma prototypes load only on a
+// press (round 8), so /privacy redirects here (public/_redirects).
+---
+<Base
+  title="Terms of Service | TAKramer Designs"
+  description="The standard terms for design work by Thomas Kramer: payment, typefaces, ownership, cancellation, liability, naming and privacy."
+  page="terms"
+  ask={false}
+>
+  <div class="w">
+    <header class="page-head">
+      <h1 class="title"><span class="t"><Ending text="Terms of Service" /></span></h1>
+      <p class="intro-line">These are the standard terms for design work by Thomas Kramer. Read them before a project starts. If anything here doesn’t fit your project, raise it first so you and Thomas can agree on changes in writing. Updated 5 November 2026.</p>
+    </header>
+    <div class="prose">
+      <section aria-labelledby="payment-h">
+        <h2 id="payment-h">Payment</h2>
+        <p>Thomas may ask for a 50% deposit before work begins. Deposits are invoiced by email and due within 30 days. Paying the deposit means you accept these terms and enter a contract with Thomas Kramer (TAKramer Designs).</p>
+        <p>The remaining balance is invoiced before final files are released. Thomas may hold delivery until the balance is paid in full, and may invoice early if you are unreachable for more than 30 days.</p>
+        <p>You may ask for a payment plan. Thomas decides whether to accept it, and any plan must be agreed in writing by both sides. All invoices are due within 30 days.</p>
+        <p>If an invoice goes unpaid for more than 30 days, you may be charged any fees from collection or recovery.</p>
+      </section>
+      <section aria-labelledby="type-h">
+        <h2 id="type-h">Typefaces</h2>
+        <p>Fonts used in the final design are covered by their own commercial licenses, and a license only covers its owner.</p>
+        <p>Thomas lists every typeface in the first concept presentation, with where to get it. You are responsible for any licenses you need, paid or free, so factor that in when approving a design.</p>
+        <p>Thomas can’t legally give you a copy of a font he bought. To use it yourself, buy a license in your name.</p>
+        <p>A font inside a logo usually needs no license, since the lettering becomes vector artwork. If you need the font for editable work such as a website or presentation, you need your own desktop license.</p>
+      </section>
+      <section aria-labelledby="restrict-h">
+        <h2 id="restrict-h">Restrictions</h2>
+        <p>These terms don’t give you rights to earlier ideas, concepts, or sketches Thomas shows during the project. All preparation material and unused ideas stay his property, and he may use them in future work. If an unused idea looks like your final logo, he will rework it so the two don’t conflict.</p>
+        <p>Unless you agree otherwise up front, Thomas may show the finished work and related designs in his portfolio, online galleries, award entries, and print, now and later. He may also use supporting artwork from the project for personal and professional purposes.</p>
+        <p>You may change or adapt the finished logo as you see fit, at your own risk.</p>
+      </section>
+      <section aria-labelledby="own-h">
+        <h2 id="own-h">Ownership and copyright</h2>
+        <p>Preparation material, sketches, visuals, and working files stay the property of Thomas Kramer. The final artwork becomes yours only once the final payment is made, and final payment transfers only the agreed final design.</p>
+        <p>If final payment isn’t made as agreed, every design and concept stays his, and he may reuse or adapt them for other clients or his portfolio. Using his work without paying will lead him to seek legal counsel.</p>
+        <p>Thomas may show work from the project in his portfolio, usually after it ends. If you need secrecy, a stealth launch, or an NDA, say so before accepting the proposal.</p>
+      </section>
+      <section aria-labelledby="cancel-h">
+        <h2 id="cancel-h">Cancellation</h2>
+        <p>If you cancel partway through, after concepts have been presented, earlier payments aren’t refundable, though part may be returned depending on the work done and the budget.</p>
+        <p>If Thomas falls ill or can’t finish for reasons outside his control, part or all of the budget will be refunded. If the finished work can be handed to another designer, the refund reflects the work completed, or another fair arrangement can be agreed.</p>
+        <p>Thomas may suspend a project for excessive micromanagement, an ongoing lack of trust, no progress after a reasonable number of distinct concepts, or reluctance to make the final payment. He will give fair notice and a chance to fix the problem first. A suspension or termination brings no refund, and all work stays his.</p>
+        <p>If Thomas can’t meet an obligation because of events beyond his control, such as natural disaster, government action, war, accident, or supply failure, that isn’t a breach, as long as you’re told why and work resumes once the cause ends.</p>
+      </section>
+      <section aria-labelledby="liab-h">
+        <h2 id="liab-h">Limitation of liability</h2>
+        <p>Thomas Kramer isn’t liable for loss or damage connected to his services, including from amendments, errors, or omissions in documents or designs, or from third-party content, links, or ads. You use the work at your own risk, and to the fullest extent the law allows, he isn’t liable for errors in it.</p>
+        <p>Every design presented will be original and, to his knowledge, won’t copy anyone else’s. He runs limited checks, including the WIPO database and reverse image searches, but takes no legal responsibility for originality disputes. Do your own checks, and raise any concern before work starts.</p>
+      </section>
+      <section aria-labelledby="name-h">
+        <h2 id="name-h">Trademark and naming</h2>
+        <p>Trademark, copyright, and legal name searches are slow and costly, so Thomas can’t help with them. To register a logo as a trademark, get your own legal advice.</p>
+        <p>Before work starts, make sure your company or product name is legally available. If a naming problem comes up after the project ends, there is no refund and he isn’t responsible for the fallout.</p>
+        <p>Changing the name mid-project is costly and causes delays. If the name changes after significant logo work has been shown, the project cost will be recalculated for the rework.</p>
+      </section>
+      <section id="privacy" aria-labelledby="privacy-h">
+        <h2 id="privacy-h">Privacy</h2>
+        <p>This site has no forms, no accounts, and no sign-ups, so it never asks for your name, email, or anything else about you.</p>
+        <p>Cloudflare hosts the site. Umami counts visits: which pages are read and which links and buttons are pressed. It sets no cookies and stores nothing that identifies you or links one visit to the next.</p>
+        <p>Some project pages hold a Figma prototype. Nothing loads from Figma until you press the button to load it; once it loads, Figma may set its own cookies under its own privacy policy.</p>
+        <p>Links to LinkedIn, X, Instagram, and GitHub take you off this site. Once you leave, those services’ own privacy policies apply.</p>
+        <p>If you write to <a href={MAILTO}>{EMAIL}</a>, your message stays in his inbox and he uses it only to reply. He does not sell, share, or add it to any mailing list. To have your messages deleted, ask at the same address.</p>
+        <p>If this page changes, the date at the top changes with it.</p>
+      </section>
+    </div>
+  </div>
+</Base>

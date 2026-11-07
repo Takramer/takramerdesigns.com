@@ -1,0 +1,89 @@
+---
+import '../styles/site.css'
+import Bar from '../components/Bar.astro'
+import Ask from '../components/Ask.astro'
+import Footer from '../components/Footer.astro'
+import Notes from '../components/Notes'
+import { SITE, PERSON, WEBSITE } from '../data/site'
+import { og } from '../lib/img'
+
+interface Props {
+  title: string
+  description: string
+  kind?: 'list' | 'case' | 'page' // list: home and /projects, where cards grow into cases
+  page: string
+  image?: string // a path under src/assets for the link preview
+  ask?: boolean // the contact block above the footer
+  scripture?: boolean
+  noindex?: boolean
+  graph?: Record<string, unknown>[] // this page's JSON-LD nodes, beside Person and WebSite
+}
+// N14: Umami's website ID is public (it ships in every page), so it lives here, not in an env var.
+const UMAMI = 'e088b5ce-7b0e-453b-9efa-5f2f505e8040'
+// The share card: the TA/KD stack at 400%, drawn anchors to fill (redesign-v3/lab/og/anim.mjs). Pages
+// that keep it also offer the drawing as a direct MP4: Messages and Discord play it inline, muted; X
+// and LinkedIn show the still.
+const CARD = 'og/takd.png'
+const { title, description, kind = 'page', page, image = CARD, ask = true, scripture = true, noindex = false, graph = [] } = Astro.props
+
+const path = Astro.url.pathname.replace(/\.html$/, '').replace(/\/index$/, '/').replace(/(.)\/$/, '$1')
+const canonical = new URL(path, SITE).href
+const preview = new URL(await og(image), SITE).href
+const person = { ...PERSON, image: new URL(await og('portrait.jpg'), SITE).href }
+const ld = { '@context': 'https://schema.org', '@graph': [person, WEBSITE, ...graph] }
+
+// Chrome prerenders a case on a 200 ms hover, so the grow starts from a page already drawn; the
+// rest of the site is fetched ahead (research/20, section 9).
+const rules = {
+  prerender: [{ where: { href_matches: '/projects/*' }, eagerness: 'moderate' }],
+  prefetch: [{ where: { and: [{ href_matches: '/*' }, { not: { href_matches: '/*.pdf' } }] }, eagerness: 'moderate' }],
+}
+---
+<!doctype html>
+<html lang="en" data-kind={kind} data-page={page}>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{title}</title>
+<meta name="description" content={description}>
+{noindex ? <meta name="robots" content="noindex"> : <link rel="canonical" href={canonical}>}
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="TAKramer Designs">
+<meta property="og:title" content={title}>
+<meta property="og:description" content={description}>
+<meta property="og:url" content={canonical}>
+<meta property="og:image" content={preview}>
+{image.startsWith('og/') && <><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"></>}
+{image === CARD && <><meta property="og:video" content={new URL('/og/takd-draw.mp4', SITE).href}><meta property="og:video:type" content="video/mp4"><meta property="og:video:width" content="1200"><meta property="og:video:height" content="630"></>}
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#F6F6F3">
+{/* ?v=2: browsers keep a site's old icon until its address changes (Framer's "T." stayed after the move). */}
+<link rel="icon" href="/favicon.ico?v=2" sizes="32x32">
+<link rel="icon" href="/favicon.svg?v=2" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="preload" href="/fonts/Endless-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/Geist-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/GeistMono-Mini.woff2" as="font" type="font/woff2" crossorigin>
+{kind !== 'list' && <link rel="preload" href="/fonts/GeistSerif-Square.woff2" as="font" type="font/woff2" crossorigin>}
+<!-- The first frame waits until the page is parsed (a case page: its first screen), so the far end
+     of the grow exists before it starts (research/20, section 7). -->
+<link rel="expect" href={kind === 'case' ? '#top' : '#end'} blocking="render">
+<script is:inline src="/site.js"></script>
+<!-- N14: Umami counts visits on the real domain only (data-domains), so previews and local builds count nothing. -->
+<script is:inline defer src="https://cloud.umami.is/script.js" data-website-id={UMAMI} data-domains="www.takramerdesigns.com,takramerdesigns.com"></script>
+<script type="speculationrules" is:inline set:html={JSON.stringify(rules)} />
+<script type="application/ld+json" is:inline set:html={JSON.stringify(ld)} />
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<Bar />
+<main id="main" tabindex="-1">
+<slot />
+{ask && <Ask />}
+</main>
+<Footer scripture={scripture} />
+<span id="end"></span>
+{import.meta.env.PUBLIC_NOTES === '1' && <Notes client:only="react" />}
+</body>
+</html>

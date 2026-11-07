@@ -1,0 +1,31 @@
+---
+import { close, contours } from '../lib/marks'
+// I7 (4 November): a brand case's mark, drawn from its geometry. When most of it is in view it draws
+// itself once: the anchor points, then the bezier handles, then the outline, then the fill. After
+// that the reader scrubs through the same four stages (site.js, draw()). Lab variants: ?i7=a, a 1px
+// track under the mark with the stages named; ?i7=b, drag across the mark itself, with the keyboard
+// on the same hidden slider. Without script it is the finished mark.
+const { slug, name } = Astro.props as { slug: string; name: string }
+const m = close(slug)
+const STAGES = ['Anchors', 'Handles', 'Outline', 'Fill']
+---
+<figure class="draw" style="--p: 1">
+  <div class="draw-art">
+    <svg viewBox={m.box} role="img" aria-label={`The ${name} mark`}>
+      <g>
+        <g class="d-fill">{m.paths.map((d) => <path d={d} />)}</g>
+        <g class="d-line">{m.paths.flatMap(contours).map((d) => <path d={d} pathLength="1" />)}</g>
+        <path class="d-handles" d={m.handles} />
+        <path class="d-anchors" d={m.anchors} />
+      </g>
+    </svg>
+  </div>
+  <figcaption class="draw-cap">
+    <label class="draw-scrub">
+      <span class="sr">Drawing stage for the {name} mark</span>
+      <input type="range" min="0" max="100" step="1" value="100" aria-valuetext="Fill" />
+    </label>
+    <ol class="draw-stages" aria-hidden="true">{STAGES.map((s) => <li>{s}</li>)}</ol>
+    <p class="draw-read" aria-hidden="true"><span class="s">Fill</span> <span class="num">{m.count}</span> anchor points</p>
+  </figcaption>
+</figure>

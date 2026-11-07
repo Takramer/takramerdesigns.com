@@ -1,0 +1,15 @@
+---
+import { EMAIL, MAILTO, SOCIAL } from '../data/site'
+import Arrow from './Arrow.astro'
+// The contact block above the footer (10-copy 1.7, reworked 1 November): the headline, one line,
+// and the address itself as the link, which opens the reader's mail app with it filled in. Each
+// profile follows as a quick link with its handle (Thomas, 2 November); no rules around the address.
+---
+<section class="ask w" aria-labelledby="ask-h">
+  <h2 id="ask-h" class="ask-h">Let's talk.</h2>
+  <div class="ask-body">
+    <p class="ask-line">Thomas is open to full-time roles in brand design, product design and design engineering. He also takes select client work.</p>
+    <a class="mail" href={MAILTO}><span class="addr">{EMAIL}</span><Arrow /><span class="sr"> (opens your mail app)</span></a>
+    <ul class="ask-links" aria-label="Profiles">{SOCIAL.map(([n, h, handle]) => <li><a href={h} target="_blank" rel="me noopener"><span class="ask-n">{n}</span><span class="ask-handle">{handle}</span><Arrow out /><span class="sr"> (opens in a new tab)</span></a></li>)}</ul>
+  </div>
+</section>

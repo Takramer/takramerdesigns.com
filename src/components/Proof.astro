@@ -1,0 +1,66 @@
+---
+import { pic } from '../lib/img'
+import tests from '../data/nydex-tests.json'
+// I4 (4 November): what a case figure opens onto. Each proof leads with how the number came about,
+// then a short table by group; the full list waits behind a closed disclosure (Thomas, 4 November:
+// the process matters more than 300 names). pages: Grace One's live pages, grabbed at 1440 x 900;
+// components: the 36 components in its Framer project; tests: Nydex's test names, snapshot by
+// lab/captures/nydex-tests.mjs and counted here at build.
+const { kind } = Astro.props as { kind: 'pages' | 'components' | 'tests' }
+const files = import.meta.glob<{ default: ImageMetadata }>('../assets/grace-one/pages/live/*.png', { eager: true })
+const NAMES: Record<string, string> = { home: 'Home', about: 'About', 'about-bylaws': 'Bylaws', worship: 'Worship', ministries: 'Ministries', 'ministries-go-kids': 'GO Kids', 'ministries-go-youth': 'GO Youth', 'ministries-go-college': 'GO College', 'ministries-young-adults': 'Young Adults', 'ministries-life-groups': 'Life Groups', 'ministries-missions': 'Missions', 'ministries-events': 'Events', give: 'Give', 'not-found': 'Page not found' }
+const pages = kind === 'pages' ? await Promise.all(Object.keys(files).sort().map(async (f) => {
+  const key = f.match(/\d\d-([\w-]+)\.png$/)![1]
+  return { name: NAMES[key] ?? key, t: await pic(f.replace('../assets/', ''), [360, 720]) }
+})) : []
+const COMPONENTS: [string, string, string[]][] = [
+  ['Frame', 'The bar, the footer and the page shells every page sits in.', ['Navbar', 'Nav Link', 'Footer', 'Home', 'Page', 'Announcement Ticker', 'Announcement']],
+  ['Sections', 'Headers, callouts, buttons, cards and the column layouts.', ['Section Header', 'Text Callout', 'Button', 'Card', 'Four Columns', 'Four Points', 'Two Next Steps', 'Verse and Vision']],
+  ['First visit', 'What a newcomer asks first: when, where, and what Sunday is like.', ['Your First Sunday', 'What to Expect', 'Sunday Times', 'Our Building', 'Belief Item', 'FAQ Item']],
+  ['Ministries', 'One card system for every age group.', ['Ministries Grid', 'Ministry Card', 'Ministry Vision', 'Program Card', 'Life Groups']],
+  ['Calendar', 'The weekly rhythm and the year’s events.', ['Weekly Schedule', 'Schedule', 'Calendar Callout', 'Annual Events', 'Event Feature']],
+  ['Sermons and people', 'Sermons and the leaders a visitor can contact.', ['Sermon', 'Sermon Details', 'Leader Card', 'Leader Contact', 'Leader Contact Card']],
+]
+const nComp = COMPONENTS.reduce((a, g) => a + g[2].length, 0)
+// Test files by area, first match wins (SetupCard.drift is interface, so it comes before Sync).
+const AREAS: [string, string, RegExp][] = [
+  ['Trading engine', 'Indicator math, scans, pre-trade checks and the auto-trader.', /trading|indicators|engine-spec|pretrade|scanJob|slidingIndicator|presetDigest|configDiff|useAutoTrader|sectorTab|watchlist/],
+  ['Tax and the trade log', 'Capital gains, loss carryforward, fees and the record of every trade.', /taxCalc|TaxTab|tradeLog/],
+  ['Server and billing', 'Stripe webhooks, rate limits, accounts and broker sign-in.', /^api\//],
+  ['Charts and interface', 'The live chart, icons, dialogs, keyboard focus and design tokens.', /livelineChart|MorphIcon|RefreshCountdown|Settings|SetupCard|useDialogFocus|tokens|legal/],
+  ['Sync and data', 'Cloud sync, earnings drift, calendar files and the sample data.', /cloudSync|supabase|drift|previewData|brokerLink|\/ics\./],
+  ['In a real browser', 'Sign in past the terms, move between pages, switch modes.', /^e2e\//],
+]
+const area = (f: string) => AREAS.findIndex((a) => a[2].test(f))
+const byArea = AREAS.map((a, i) => ({ name: a[0], what: a[1], n: tests.filter((t) => area(t.file) === i).reduce((s, t) => s + t.tests.length, 0) }))
+const count = tests.reduce((a, f) => a + f.tests.length, 0)
+const pad = (n: number) => String(n).padStart(2, '0')
+---
+{kind === 'pages' && (
+  <div class="pf pf-pages">
+    <div class="pf-why">
+      <p>Thomas planned the site map around the questions a first-time visitor asks: when and where to come, what a Sunday is like, what there is for each age, and how to take a next step. He tested the structure in Figma, then built each page in Framer.</p>
+      <p>14 pages are live, the 404 among them, grabbed at 1440 × 900 on 4 November. Two more, History and Campus, are still in development.</p>
+    </div>
+    <ol class="pf-grid">{pages.map((p, i) => <li><img src={p.t.src} srcset={p.t.srcset} sizes="(min-width: 900px) 18vw, 45vw" alt={`Grace One Church, ${p.name} page`} width={p.t.width} height={p.t.height} loading="lazy" decoding="async" /><span><span class="num">{pad(i + 1)}</span> {p.name}</span></li>)}</ol>
+  </div>
+)}
+{kind === 'components' && (
+  <div class="pf">
+    <div class="pf-why">
+      <p>Thomas built the site from parts, not pages. Each section is a Framer component with its own variants, so a change to Sunday Times or a leader card reaches every page that uses it, and the church can change copy, events and calls to action after handoff without rebuilding a page.</p>
+    </div>
+    <dl class="pf-sum">{COMPONENTS.map(([g, what, names]) => <div><dt>{g}</dt><dd class="num">{names.length}</dd><dd>{what}</dd></div>)}</dl>
+    <details class="pf-all"><summary><span>All {nComp} components, by name</span></summary><ol class="pf-names">{COMPONENTS.flatMap((g) => g[2]).map((c, i) => <li><span class="num">{pad(i + 1)}</span> {c}</li>)}</ol></details>
+  </div>
+)}
+{kind === 'tests' && (
+  <div class="pf">
+    <div class="pf-why">
+      <p>Thomas wrote a test for each rule Nydex must not break, most of them around money: tax estimates, the trade log, billing and the trading engine’s math. Every push to main runs the linter, all {count} tests and a full build; 5 of the tests drive the app in a real browser.</p>
+      <p>One file holds the trading engine to its written spec, so a setting on screen and the code that reads it cannot drift apart.</p>
+    </div>
+    <dl class="pf-sum">{byArea.map((a) => <div><dt>{a.name}</dt><dd class="num">{a.n}</dd><dd>{a.what}</dd></div>)}</dl>
+    <details class="pf-all"><summary><span>All {count} tests in {tests.length} files, by name</span></summary><div class="pf-tests">{tests.map((f) => <section><h3>{f.file}</h3><ol>{f.tests.map((t) => <li>{t}</li>)}</ol></section>)}</div></details>
+  </div>
+)}

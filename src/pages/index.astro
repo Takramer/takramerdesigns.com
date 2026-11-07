@@ -1,0 +1,78 @@
+---
+import Base from '../layouts/Base.astro'
+import Ending from '../components/Ending.astro'
+import Usage from '../components/Usage.astro'
+import { PROJECTS, BY, COVER, FEATURED } from '../data/projects'
+import { SITE } from '../data/site'
+import { thumb, SIZES } from '../lib/img'
+
+// Home (07 5.1; 10-copy 1; N1): the cover and its stage with four projects, then the other six as an
+// index with one preview frame that stays in view while the list scrolls (Thomas, 4 November: none of the four twice, and not the
+// cover's card look), a link to all ten, the about line, then the contact block and footer.
+const cover = await Promise.all(COVER.map(async (s) => ({ p: BY[s], t: await thumb(BY[s].thumb) })))
+const SPANS = [[10, 0], [6, 10], [4, 16], [4, 20]] // (span, offset) in 24ths: the lead in focus
+const g1 = cover[0].p
+const frames = await Promise.all(FEATURED.map(async (p) => ({ p, t: await thumb(p.thumb) })))
+
+const list = {
+  '@type': 'ItemList',
+  '@id': `${SITE}/projects#list`,
+  name: 'All ten projects',
+  numberOfItems: PROJECTS.length,
+  itemListElement: PROJECTS.map((p, i) => ({ '@type': 'ListItem', position: i + 1, url: `${SITE}/projects/${p.slug}`, name: p.name })),
+}
+---
+<Base
+  title="Thomas Kramer, brand and product designer | TAKramer Designs"
+  description="Thomas Kramer is a brand and product designer who builds what he designs. Case studies include Underline, Nydex, Grace One Church and Healthy Campus Week."
+  kind="list"
+  page="home"
+  graph={[list]}
+>
+  <section class="stage w" aria-label="Selected work">
+    <div class="cover">
+      <h1 class="role"><span class="l1"><span class="who">Thomas Kramer,</span> brand and product designer</span> <span class="l2"><Ending text="who builds what he designs." /></span></h1>
+      <ul class="row">
+        {cover.map(({ p, t }, i) => (
+          <li class="card" style={`--n:${SPANS[i][0]};--o:${SPANS[i][1]}`}>
+            <a href={`/projects/${p.slug}`} data-slug={p.slug} data-vt={`cover:${p.slug}`}>
+              <span class="frame"><span class="mover"><span class="counter"><img src={t.src} srcset={t.srcset} sizes={SIZES.cover} alt={p.alt} width={t.width} height={t.height} fetchpriority={i === 0 ? 'high' : undefined} /></span></span></span>
+              <span class="cap"><span class="n">{p.name}.</span><span class="c">{p.claim}</span></span>
+            </a>
+          </li>
+        ))}
+      </ul>
+      <p class="leadbar" aria-hidden="true"><span class="n">{g1.name}.</span> <span class="c">{g1.claim}</span></p>
+    </div>
+  </section>
+
+  <section class="more w" aria-labelledby="more-h">
+    <h2 id="more-h" class="work-h">More projects</h2>
+    <div class="ix-wrap">
+      <ol class="ix">
+        {frames.map(({ p }) => (
+          <li>
+            <a href={`/projects/${p.slug}`} data-slug={p.slug} data-vt={`ix:${p.slug}`}>
+              <span class="ix-text"><span class="n">{p.name}.</span><span class="ix-role">{p.facts[0]}</span>{p.result && <span class="ix-result">{p.result}</span>}</span>
+              <span class="ix-year">{p.facts[1]}</span>
+            </a>
+          </li>
+        ))}
+      </ol>
+      <div class="ix-rail" aria-hidden="true">
+        <div class="ix-stick">
+          {frames.map(({ p, t }) => (
+            <span class="frame ix-pv" data-pv={p.slug}><img src={t.src} srcset={t.srcset} sizes={SIZES.preview} alt="" width={t.width} height={t.height} loading="lazy" decoding="async" /></span>
+          ))}
+        </div>
+      </div>
+    </div>
+    <p class="read"><a class="rule" href="/projects">All {PROJECTS.length} projects</a></p>
+  </section>
+
+  <section class="teaser w" aria-label="About">
+    <p>Thomas Kramer has run TAKramer Designs since January 2021 and finished his BFA in Graphic Design at UNC Charlotte in December 2025.</p>
+    <p class="read"><a class="rule" href="/about">About Thomas</a></p>
+  </section>
+  <div class="w prose usage-home"><Usage /></div>
+</Base>

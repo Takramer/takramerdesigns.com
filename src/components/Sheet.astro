@@ -1,0 +1,33 @@
+---
+import { mark as markOf } from '../lib/marks'
+import { pic } from '../lib/img'
+import type { Sheet } from '../data/sheets'
+// I10 (Thomas picked A, assemble, 5 November; lab/i10): a brand case opens on a sheet of its parts,
+// the mark, the colors, the set type and a close crop of the artwork. After 900 ms the four parts
+// close in on the center and fade while the hero opens from there (site.js, assemble()). Only on a
+// plain arrival with motion on: a grow from the wall, reduced motion and no script all show the
+// hero alone. Decorative, so aria-hidden; the hero's own alt text still describes the work.
+const { sheet: s, mark: slug } = Astro.props as { sheet: Sheet; mark: string }
+const m = markOf(slug)
+const [ty, dt] = await Promise.all([pic(s.type, [1000]), pic(s.detail, [800])])
+const id = `sheet-${slug}`
+---
+<div class="sheet" aria-hidden="true" style={`--sg: ${s.ground}; --si: ${s.ink}`}>
+  <div class="part p-mark">
+    <span class="k">Mark</span>
+    <svg viewBox={m.box}>
+      {s.fill && m.x && (
+        <defs><linearGradient id={id} gradientUnits="userSpaceOnUse" x1={m.x[0]} x2={m.x[1]} y1="0" y2="0">{s.fill.map((c, i) => <stop offset={i / (s.fill!.length - 1)} stop-color={c} />)}</linearGradient></defs>
+      )}
+      <g transform={m.shift} fill={s.fill ? `url(#${id})` : 'currentColor'}>{m.paths.map((d) => <path d={d} />)}</g>
+    </svg>
+  </div>
+  <div class="part p-color">
+    <span class="k">Color</span>
+    <ul class="chips" style={`--n: ${s.chips.length}`} data-many={s.chips.length > 5 ? '' : undefined}>
+      {s.chips.map((c) => <li class={c === s.ground ? 'edge' : undefined} style={`--c: ${c}`}><span>{c}</span></li>)}
+    </ul>
+  </div>
+  <div class="part p-type"><span class="k">Type</span><i class="ty" style={`background-image: url("${ty.src}")`}></i></div>
+  <div class="part p-zoom"><i class="z" style={`background-image: url("${dt.src}")`}></i><span class="k">Detail</span></div>
+</div>

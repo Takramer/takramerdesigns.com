@@ -1,0 +1,38 @@
+---
+import Base from '../layouts/Base.astro'
+import Ending from '../components/Ending.astro'
+import Arrow from '../components/Arrow.astro'
+import { EMAIL, MAILTO, SOCIAL, RESUME_PDF } from '../data/site'
+
+// Contact (10-copy 4.5, reworked 1 November): a page of its own, not the block. The address is the
+// second line of the title and the link itself; under it, what he is open to with the resume as one
+// line under it (Thomas, 1 November), then his profiles. The mark is the footer's alone now (Thomas,
+// 4 November: it showed twice here).
+---
+<Base
+  title="Contact | TAKramer Designs"
+  description="Email Thomas Kramer, download his resume or find him on LinkedIn, Instagram, X and GitHub. He is open to full-time roles in brand design, product design and design engineering."
+  page="contact"
+  ask={false}
+>
+  <div class="w contact">
+    <header class="contact-head">
+      <h1 class="title"><span class="t"><Ending text="Let's talk." /></span></h1>
+      <p class="big"><a class="big-mail" href={MAILTO}>{EMAIL}<span class="sr"> (opens your mail app)</span></a></p>
+    </header>
+    <div class="contact-info">
+      <section aria-labelledby="open-h">
+        <h2 class="label" id="open-h">Open to</h2>
+        <p class="contact-lead">Full-time roles in brand design, product design and design engineering.</p>
+        <p class="contact-more">He also takes select client work. Email is the fastest way to reach him.</p>
+        <ul class="profiles cv"><li><a href={RESUME_PDF} download><span class="pn">Resume</span><span class="ph">PDF, 1 page</span><Arrow down /><span class="sr"> (downloads)</span></a></li></ul>
+      </section>
+      <section aria-labelledby="else-h">
+        <h2 class="label" id="else-h">Profiles</h2>
+        <ul class="profiles">
+          {SOCIAL.map(([n, h, handle]) => <li><a href={h} target="_blank" rel="me noopener"><span class="pn">{n}</span><span class="ph">{handle}</span><Arrow out /><span class="sr"> (opens in a new tab)</span></a></li>)}
+        </ul>
+      </section>
+    </div>
+  </div>
+</Base>

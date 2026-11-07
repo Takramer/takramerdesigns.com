@@ -1,0 +1,6 @@
+---
+import { JOIN } from '../lib/text'
+const { text } = Astro.props as { text: string }
+const m = text.match(JOIN)
+---
+{m ? <Fragment>{m[1]}<wbr />{m[2]}</Fragment> : text}

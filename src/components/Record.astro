@@ -1,0 +1,90 @@
+---
+import { EXPERIENCE, EDUCATION } from '../data/site'
+// Experience and education as one timeline on About (N13). Screen readers get an ordered list, newest
+// first, each date in <time>. The eye gets a year axis, a lane for each run of dates that overlaps
+// another, and a square on each entry; the one still running is orange. The dates come from the copy
+// itself, so the data stays as the resume has it. Rows follow the order of events, not a scale:
+// a scale would need about 2,600 px to keep the four 2026 entries apart.
+const MONTH = 'Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec'
+const DATE = new RegExp(`\\b(${MONTH})[a-z]*(?: (\\d{4}))?(?: to (?:(present)|(${MONTH})[a-z]* (\\d{4})))?`)
+const mi = (m: string) => MONTH.split('|').indexOf(m)
+const iso = (y: number, m: number) => `${y}-${String(m + 1).padStart(2, '0')}`
+
+type Part = string | { text: string; datetime?: string }
+interface Entry { head: string; line: Part[]; when?: Part[]; from: number; to: number; now: boolean }
+
+// Split a string around its date: the text before, the date as <time> parts, the text after.
+function read(s: string) {
+  const m = s.match(DATE)
+  if (!m || (!m[2] && !m[5])) throw new Error(`Record.astro: no date in "${s}"`)
+  const [all, m1, y1s, present, m2, y2s] = m
+  const y2 = y2s ? +y2s : +y1s
+  const y1 = y1s ? +y1s : y2
+  const a = { text: all.split(' to ')[0], datetime: iso(y1, mi(m1)) }
+  const b: Part = present ? 'present' : m2 ? { text: `${all.split(' to ')[1]}`, datetime: iso(y2, mi(m2)) } : ''
+  const date: Part[] = present || m2 ? [a, ' to ', b] : [a]
+  const from = y1 * 12 + mi(m1)
+  const to = present ? Infinity : m2 ? y2 * 12 + mi(m2) : from
+  return { before: s.slice(0, m.index), date, after: s.slice(m.index! + all.length), from, to, now: !!present }
+}
+
+const entries: Entry[] = [
+  ...EXPERIENCE.map((x) => {
+    const d = read(x.dates)
+    return { head: `${x.title}, ${x.where}`, when: d.date, line: [x.line], from: d.from, to: d.to, now: d.now }
+  }),
+  ...EDUCATION.map(([k, v]) => {
+    const d = read(v)
+    return { head: k, line: [d.before, ...d.date, d.after], from: d.from, to: d.to, now: d.now }
+  }),
+].sort((a, b) => b.to - a.to || b.from - a.from)
+
+// The top of the axis: the last year any date reaches. "Present" sits just under that year's rule.
+const top = Math.max(new Date().getFullYear(), ...entries.flatMap((e) => [e.from, e.to]).filter(Number.isFinite).map((n) => Math.floor(n / 12)))
+const at = (n: number) => (Number.isFinite(n) ? n : top * 12 + 11.5)
+
+// Lanes: each entry takes the first lane free for all of its dates, so runs that overlap sit side by side.
+const lanes: [number, number][][] = []
+const lane = entries.map((e) => {
+  let i = lanes.findIndex((l) => l.every(([f, t]) => at(e.to) < f || e.from > t))
+  if (i < 0) i = lanes.push([]) - 1
+  lanes[i].push([e.from, at(e.to)])
+  return i
+})
+
+// Rows, newest first: a rule for each year, a row for each entry, a short row where a run began.
+type Row = { k: 'year'; y: number } | { k: 'entry'; i: number } | { k: 'start'; i: number }
+const bottom = Math.min(...entries.map((e) => Math.floor(e.from / 12)))
+const events: [number, number, Row][] = []
+for (let y = top; y >= bottom; y--) events.push([y * 12 + 11.9, 0, { k: 'year', y }])
+entries.forEach((e, i) => {
+  events.push([at(e.to), 1 + i / 100, { k: 'entry', i }])
+  if (e.from !== e.to) events.push([e.from, 1 + i / 100, { k: 'start', i }])
+})
+const rows = events.sort((a, b) => b[0] - a[0] || a[1] - b[1]).map(([, , r]) => r)
+const rowOf = (k: Row['k'], i: number) => rows.findIndex((r) => r.k === k && 'i' in r && r.i === i) + 1
+const tracks = rows.map((r) => (r.k === 'year' ? 'minmax(2.5rem, auto)' : r.k === 'start' ? '1rem' : 'auto')).join(' ')
+---
+<section aria-labelledby="rec-h">
+  <h2 id="rec-h">Experience and education</h2>
+  <div class="tl" style={`grid-template-rows: ${tracks}; --lanes: ${lanes.length}`}>
+    <div class="axis" aria-hidden="true">
+      {rows.map((r, n) => r.k === 'year' && <span class="yr" style={`grid-row: ${n + 1}`}>{r.y}</span>)}
+      {entries.map((e, i) => (
+        <i
+          class:list={['run', { pt: e.from === e.to, now: e.now }]}
+          style={`grid-row: ${rowOf('entry', i)} / ${e.from === e.to ? rowOf('entry', i) + 1 : rowOf('start', i) + 1}; grid-column: ${lane[i] + 2}`}
+        />
+      ))}
+    </div>
+    <ol>
+      {entries.map((e, i) => (
+        <li style={`grid-row: ${rowOf('entry', i)}`}>
+          <b>{e.head}</b>
+          {e.when && <span class="when">{e.when.map((p) => (typeof p === 'string' ? p : <time datetime={p.datetime}>{p.text}</time>))}</span>}
+          <p>{e.line.map((p) => (typeof p === 'string' ? p : <time datetime={p.datetime}>{p.text}</time>))}</p>
+        </li>
+      ))}
+    </ol>
+  </div>
+</section>
