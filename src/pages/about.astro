@@ -1,0 +1,64 @@
+---
+import Base from '../layouts/Base.astro'
+import Ending from '../components/Ending.astro'
+import Acuity from '../components/Acuity.astro'
+import Frame from '../components/Frame.astro'
+import Arrow from '../components/Arrow.astro'
+import Record from '../components/Record.astro'
+import Usage from '../components/Usage.astro'
+import Principles from '../components/about/Principles.astro'
+import { SITE, RESUME_PDF } from '../data/site'
+import { pic } from '../lib/img'
+
+// About (07 5.7; 10-copy 3): the portrait at a modest size, uncovering once; the one place the
+// site names legal blindness; what he believes, in his three words and his order, each shown
+// (about/Principles.astro); the record.
+const portrait = await pic('portrait.jpg', [400, 800])
+const profile = { '@type': 'ProfilePage', '@id': `${SITE}/about#page`, url: `${SITE}/about`, name: 'About', mainEntity: { '@id': `${SITE}/#thomas` } }
+---
+<Base
+  title="About | TAKramer Designs"
+  description="Thomas Kramer is a legally blind brand and product designer who has run TAKramer Designs since 2021. He holds a BFA in Graphic Design from UNC Charlotte and works with AI tools every day, Claude Code most of all."
+  page="about"
+  image="portrait.jpg"
+  graph={[profile]}
+>
+  <div class="w">
+    <header class="grid about-head">
+      <figure class="portrait"><Frame pic={portrait} alt="Thomas Kramer in a dark suit and sunglasses" sizes="(min-width: 900px) 24vw, 50vw" ratio="4 / 5" lazy={false} /></figure>
+      <div>
+        <h1 class="title"><span class="t"><Ending text="Precision Obsession" /></span></h1>
+        <p class="lede">Thomas Kramer is a brand and product designer based in Charlotte, North Carolina, who builds what he designs. He has run TAKramer Designs since January 2021. In 2026 he designed and built two web apps on his own, Underline and Nydex, and redesigned Grace One Church’s website in Framer so every first-time visitor has a clear next step.</p>
+        {/* The resume under the lede, so a recruiter has it before the record (lane D, 10 November). */}
+        <div class="about-tools">
+          <p class="about-cv" id="resume-h"><a href={RESUME_PDF} download>Download resume<Arrow down /><span class="sr"> (PDF)</span></a></p>
+          {/* I13: reading size, a slider. Script only. */}
+          <div class="rs" hidden>
+            <label class="rs-b"><span>Reading size</span><span class="rs-in"><span class="rs-track" aria-hidden="true"><i></i></span><input type="range" min="100" max="200" step="5" value="100" /></span><output>100%</output></label>
+          </div>
+        </div>
+      </div>
+    </header>
+    <div class="prose">
+      <section aria-labelledby="sees-h">
+        <h2 id="sees-h">How he sees</h2>
+        <div>
+          <p>Thomas was born with albinism and is legally blind. Low contrast and crowded layouts are hard work for his eyes, so he builds hierarchy on purpose: strong contrast between every color, type that reads at a glance, and nothing extra. Up close, past 400% zoom, he checks alignment and anchor points; pulled back, he checks the reading order. Those same choices make his work easier for everyone else to read.</p>
+          {/* NOAH: the National Organization for Albinism and Hypopigmentation (checked on its page, 11 November). */}
+          <a class="button sees-more" href="https://albinism.org/about-albinism/" target="_blank" rel="noopener">About albinism, from NOAH<Arrow out /><span class="sr"> (opens in a new tab)</span></a>
+        </div>
+      </section>
+    </div>
+  </div>
+  <Acuity />
+  <div class="w">
+    <Principles />
+    <div class="prose">
+      <Record />
+      <Usage />
+    </div>
+  </div>
+</Base>
+
+<style>
+</style>

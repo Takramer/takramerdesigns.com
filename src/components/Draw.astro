@@ -1,0 +1,48 @@
+---
+import { close, contours, candles } from '../lib/marks'
+import Candles from './Candles.astro'
+// I7 (4 November): a brand case's mark, drawn from its geometry. When most of it is in view it draws
+// itself once: the anchor points, then the bezier handles, then the outline, then the fill. After
+// that the reader scrubs through the same four stages (site.js, draw()). Lab variants: ?i7=a, a 1px
+// track under the mark with the stages named; ?i7=b, drag across the mark itself, with the keyboard
+// on the same hidden slider. Without script it is the finished mark.
+// Play / Pause / Replay (Thomas, 9 November) sits at the end of the track, where the anchor count
+// was: it plays the build from where the slider is, or from the start once it has finished.
+const { slug, name } = Astro.props as { slug: string; name: string }
+const m = close(slug)
+const STAGES = ['Anchors', 'Handles', 'Outline', 'Fill']
+// Marks built from trading candles (Nydex) print them as a chart, one candle after another, while the
+// letters outline; the candles' own rectangles leave the outline and fill passes. Each candle trades
+// its own price path (Candles.astro); the price line follows it and fades once the fill is in.
+const CANDLED = new Set(['nydex'])
+const cs = CANDLED.has(slug) ? candles(slug) : []
+const isRect = (d: string) => /^M-?[\d.]+ -?[\d.]+h-?[\d.]+v-?[\d.]+h-?[\d.]+Z$/.test(d)
+const letters = cs.length ? m.paths.filter((d) => !isRect(d)) : m.paths
+---
+<figure class="draw" style="--p: 1">
+  <div class="draw-art">
+    <svg viewBox={m.box} role="img" aria-label={`The ${name} mark`}>
+      <g>
+        <g class="d-fill">{letters.map((d) => <path d={d} />)}</g>
+        <g class="d-line">{letters.flatMap(contours).map((d) => <path d={d} pathLength="1" />)}</g>
+        {cs.length > 0 && <Candles cs={cs} span={[0.06, 0.74]} price />}
+        <path class="d-handles" d={m.handles} />
+        <path class="d-anchors" d={m.anchors} />
+      </g>
+    </svg>
+  </div>
+  <figcaption class="draw-cap">
+    <label class="draw-scrub">
+      <span class="sr">Drawing stage for {name.startsWith('The ') ? name : 'the ' + name} mark</span>
+      <input type="range" min="0" max="100" step="1" value="100" aria-valuetext="Fill" />
+    </label>
+    <ol class="draw-stages" aria-hidden="true">{STAGES.map((s, i) => <li class:list={{ on: i === STAGES.length - 1 }}>{s}</li>)}</ol>
+    <p class="draw-read" aria-hidden="true"><span class="s">Fill</span></p>
+    <button class="button draw-play" type="button" data-state="replay">
+      <svg class="i-play" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 1.5v9l8-4.5z" /></svg>
+      <svg class="i-pause" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 1.5h2.5v9H2.5zM7 1.5h2.5v9H7z" /></svg>
+      <svg class="i-replay" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1.25a4.75 4.75 0 1 1-4.6 5.9l1.45-.37A3.25 3.25 0 1 0 3.9 3.4L5.5 5H1.25V.75l1.6 1.6A4.73 4.73 0 0 1 6 1.25z" /></svg>
+      <span class="t">Replay</span><span class="sr"> {name.startsWith('The ') ? name : 'the ' + name} mark’s drawing</span>
+    </button>
+  </figcaption>
+</figure>

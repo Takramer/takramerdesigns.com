@@ -1,0 +1,31 @@
+---
+import Base from '../layouts/Base.astro'
+import Ending from '../components/Ending.astro'
+import Scrub from '../components/wall/Scrub.astro'
+import { PROJECTS } from '../data/projects'
+import { SITE } from '../data/site'
+
+// The wall (07 5.3; 10-copy 4.1): all ten, with filters that glide the cards to their new places. The
+// filter is kept in the URL (?f=brand). Under each name, its four-word line says what the project is
+// (audit, 10 November). Each card scrubs through the project's own frames (Scrub, 11 November).
+const list = {
+  '@type': 'ItemList',
+  '@id': `${SITE}/projects#list`,
+  name: 'Work',
+  numberOfItems: PROJECTS.length,
+  itemListElement: PROJECTS.map((p, i) => ({ '@type': 'ListItem', position: i + 1, url: `${SITE}/projects/${p.slug}`, name: p.name })),
+}
+---
+<Base
+  title="Work | TAKramer Designs"
+  description="Ten projects by Thomas Kramer in brand, product and engineering, including Underline, Nydex, Grace One Church and Healthy Campus Week."
+  kind="list"
+  page="projects"
+  graph={[list]}
+>
+  <div class="w page-head">
+    <h1 class="title"><span class="t"><Ending text="Work" /></span></h1>
+    <p class="intro-line">Ten projects in brand, product and engineering. See more in <a class="nw" href="/one-offs">One-offs</a> and <a href="/logos">Logos</a>.</p>
+    <Scrub />
+  </div>
+</Base>

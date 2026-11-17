@@ -1,0 +1,211 @@
+---
+import { LAND, COLS, ROWS, CELL, NORTH, CLT } from '../../data/land'
+// The sun clock: Charlotte's time over a world of squares, with the night drawn where it is now.
+// One viewBox unit is one degree (x = longitude + 180, y = 76 - latitude), so a 4-degree cell is
+// 4 px at the default 360 px width: a 3 px square and a 1 px gap, whole pixels at dpr 1 and 2.
+// The land is fixed markup from build time; the script moves only the night, the sun and the time.
+// `at` (an ISO time) pins the clock to one moment, for the lab's previews. Setting or removing
+// data-at later redraws it, so a host can scrub through time. `read={false}` drops the readout; the
+// host reads data-day, data-now, data-date, data-next, data-next-at, data-rise and data-set instead
+// (Charlotte, at the moment drawn). --sc-track draws the sun's track for the day, none by default.
+// Theme from the host: color (the ink), --sc-quiet (the labels, 7:1 or more on the ground),
+// --sc-w (the width, 360px by default); --sc-night and --sc-dusk (the night dots and twilight
+// squares) only if the ink thinned to 60% and 40% will not do.
+const { at, read = true } = Astro.props as { at?: string; read?: boolean }
+const bits = Uint8Array.from(atob(LAND), (c) => c.charCodeAt(0))
+// Charlotte's cell, and a clearing of the eight around it so its marker and ring stand alone.
+const cc = Math.floor((CLT[1] + 180) / CELL), cr = Math.floor((NORTH - CLT[0]) / CELL)
+const land = (c: number, r: number) => (Math.abs(c - cc) > 1 || Math.abs(r - cr) > 1) && (bits[(r * COLS + c) >> 3] >> (7 - ((r * COLS + c) & 7))) & 1
+// Each run of land in a row is one stroked line, dashed 3 on and 1 off, so a run of n cells draws n
+// squares. A run's length is a whole number of 4 px periods, so the dash phase is right on every
+// run whether or not a browser restarts the dash at each subpath. The night dots are the same path
+// with a 1 px stroke and a dash of 0 1 1 2.
+let d = ''
+for (let r = 0; r < ROWS; r++) for (let c = 0, a = -1; c <= COLS; c++) {
+  const on = c < COLS && land(c, r)
+  if (on && a < 0) a = c
+  if (!on && a >= 0) { d += `M${a * CELL} ${r * CELL + 1.5}h${(c - a) * CELL}`; a = -1 }
+}
+const id = `sc${Math.random().toString(36).slice(2, 7)}`
+const W = COLS * CELL, H = ROWS * CELL, full = `M0 0h${W}v${H}H0z`
+const x0 = cc * CELL, y0 = cr * CELL
+---
+<div class="sunclock" data-at={at}>
+  {read && <p class="sc-read" hidden><span><span class="q">CLT</span> <time></time></span><span class="q sc-ev"></span></p>}
+  <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="A world map drawn in squares, with Charlotte marked">
+    <defs>
+      <path id={`${id}l`} d={d} />
+      {/* Without script the whole map is in day: both clips start as the full map. */}
+      <clipPath id={`${id}n`}><path class="sc-cn" d={full} /></clipPath>
+      <clipPath id={`${id}t`}><path class="sc-ct" d={full} /></clipPath>
+      <clipPath id={`${id}d`}><path class="sc-cd" d={full} /></clipPath>
+      <mask id={`${id}m`}><path d={full} fill="#fff" /><circle class="sc-mk" r="7" cx="-99" /></mask>
+    </defs>
+    <g mask={`url(#${id}m)`}>
+      <use class="sc-n" href={`#${id}l`} clip-path={`url(#${id}n)`} />
+      <use class="sc-tw" href={`#${id}l`} clip-path={`url(#${id}t)`} />
+      <use class="sc-dy" href={`#${id}l`} clip-path={`url(#${id}d)`} />
+    </g>
+    <path class="sc-trk" />
+    <path class="sc-line" />
+    <circle class="sc-sun" r="3" cx="-99" />
+    <rect class="sc-ring" x={x0 - 2.5} y={y0 - 2.5} width="8" height="8" />
+    <rect class="sc-clt" x={x0 - 1} y={y0 - 1} width="5" height="5" />
+  </svg>
+</div>
+
+<script>
+  // PRIVACY: this reads nothing about the visitor. No location, no IP, no request of any kind, no
+  // time zone or locale. It uses the current instant (Date.now(), the same everywhere on Earth) and
+  // fixed facts about Charlotte; Charlotte's wall time comes from a formatter pinned to
+  // America/New_York, the same one site.js uses for the footer clock.
+  import { COLS, ROWS, CELL, NORTH, CLT } from '../../data/land'
+  const { round } = Math, R = Math.PI / 180, [LAT, LON] = CLT
+  // Trigonometry in degrees.
+  const sin = (x: number) => Math.sin(x * R), cos = (x: number) => Math.cos(x * R), tan = (x: number) => Math.tan(x * R)
+  const fmt = new Intl.DateTimeFormat('en-GB', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+  const dfmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }) // Charlotte's date, YYYY-MM-DD
+
+  // The sun at instant t: [declination, equation of time (min), subsolar longitude], in degrees.
+  // NOAA Global Monitoring Laboratory, "General Solar Position Calculations": the fractional year
+  // g = 2pi/days * (day of year - 1 + (hour - 12)/24) radians, then
+  //   decl = 0.006918 - 0.399912 cos g + 0.070257 sin g - 0.006758 cos 2g + 0.000907 sin 2g
+  //          - 0.002697 cos 3g + 0.00148 sin 3g  (radians)
+  //   eqtime = 229.18 (0.000075 + 0.001868 cos g - 0.032077 sin g - 0.014615 cos 2g - 0.040849 sin 2g)
+  // The sun stands overhead where true solar time is noon: UTC minutes + eqtime + 4 lon = 720.
+  const sun = (t: number) => {
+    // ponytail: a year of 365.24 days, not 365 or 366: at most 0.8 day of angle off late in a leap
+    // year, under 0.1 degree of declination there and well under a minute of sunrise.
+    const y = new Date(t).getUTCFullYear(), g = (360 / 365.24) * ((t - Date.UTC(y, 0, 1)) / 864e5 - 0.5), c = (k: number) => cos(k * g), s = (k: number) => sin(k * g)
+    const e = 229.18 * (0.000075 + 0.001868 * c(1) - 0.032077 * s(1) - 0.014615 * c(2) - 0.040849 * s(2))
+    return [(0.006918 - 0.399912 * c(1) + 0.070257 * s(1) - 0.006758 * c(2) + 0.000907 * s(2) - 0.002697 * c(3) + 0.00148 * s(3)) / R, e,
+      ((720 - e - (t % 864e5) / 6e4) / 4 + 540) % 360 - 180]
+  }
+
+  // Charlotte's next sunrise or sunset after t, by the same NOAA sheet: the hour angle at a zenith of
+  // 90.833 degrees (refraction and the sun's radius), sunrise = 720 - 4 (lon + ha) - eqtime minutes
+  // after UTC midnight, sunset with -ha. D is the UTC midnight of Charlotte's mean solar day, so both
+  // events of that day fall after it.
+  const day = (t: number): [number, number] => {
+    const D = Math.floor((t + LON * 24e4) / 864e5) * 864e5, [dc, e] = sun(D + (720 - 4 * LON) * 6e4)
+    const h = Math.acos(cos(90.833) / (cos(LAT) * cos(dc)) - tan(LAT) * tan(dc)) / R
+    const at = (k: number) => D + (720 - 4 * (LON + k * h) - e) * 6e4
+    return [at(1), at(-1)]
+  }
+  const next = (t: number): [string, number] => {
+    const [up, down] = day(t)
+    return t < up ? ['rise', up] : t < down ? ['set', down] : ['rise', day(t + 864e5)[0]]
+  }
+
+  // The light in Charlotte by the sun's altitude there, morning or evening (Thomas, 14 November: more
+  // than day and night). Civil twilight ends at 6 degrees down, nautical at 12; golden hour runs from
+  // the horizon (the 0.833 degree of refraction and the sun's radius) to 6 degrees up.
+  // Each phase from this altitude up; its name, and what its start is called, morning and evening.
+  const FROM = [-90, -12, -6, -0.833, 6]
+  const AM = { name: ['night', 'dawn', 'daybreak', 'golden hour', 'day'], start: ['dark', 'dawn', 'daybreak', 'sunrise', 'full daylight'] }
+  const PM = { name: ['night', 'nightfall', 'dusk', 'golden hour', 'day'], start: ['dark', 'nightfall', 'sunset', 'golden hour', 'day'] }
+  const phaseAt = (t: number) => {
+    const [dc, , ls] = sun(t), a = Math.asin(sin(LAT) * sin(dc) + cos(LAT) * cos(dc) * cos(LON - ls)) / R
+    const side = ((LON - ls + 540) % 360) - 180 > 0 ? PM : AM // west of the sun: afternoon
+    const i = FROM.findLastIndex((f) => a >= f)
+    return { name: side.name[i], start: side.start[i] }
+  }
+  // When the light next changes, to the minute: ponytail: a 2-minute walk, at most a day of steps.
+  const till = (t: number) => {
+    const now = phaseAt(t).name
+    for (let u = Math.ceil(t / 12e4) * 12e4; u < t + 864e5; u += 12e4) { const p = phaseAt(u); if (p.name !== now) return { at: u, start: p.start } }
+    return null
+  }
+
+  const draw = (el: HTMLElement, t: number) => {
+    const [dc, , ls] = sun(t), q = (s: string) => el.querySelector(s)!, set = (s: string, k: string, v: unknown) => q(s).setAttribute(k, `${v}`)
+    // The sine of the sun's altitude at a latitude and longitude.
+    const alt = (la: number, lo: number) => sin(la) * sin(dc) + cos(la) * cos(dc) * cos(lo - ls)
+    // A cell is lit when the sun is above h at its centre; each column's lit runs become one clip.
+    // With dark set, the unlit runs instead: the night dots stay out of the twilight squares, which
+    // are see-through.
+    const clip = (h: number, dark = false) => {
+      let p = ''
+      for (let c = 0; c < COLS; c++) for (let r = 0, a = -1; r <= ROWS; r++) {
+        const on = r < ROWS && alt(NORTH - CELL * (r + 0.5), CELL * (c + 0.5) - 180) > h != dark
+        if (on && a < 0) a = r
+        if (!on && a >= 0) { p += `M${c * CELL} ${a * CELL}h4v${(r - a) * CELL}h-4z`; a = -1 }
+      }
+      return p
+    }
+    set('.sc-cd', 'd', clip(0))
+    set('.sc-ct', 'd', clip(sin(-6))) // civil twilight: the sun up to 6 degrees down
+    set('.sc-cn', 'd', clip(sin(-6), true))
+    // The terminator, where the altitude is 0: tan lat = -cos(lon - lon_sun) / tan decl. atan2 keeps
+    // it finite at the equinoxes, where it becomes two meridians; the sign of the declination moves
+    // onto the numerator so the angle stays within 90 degrees of the equator.
+    let p = ''
+    const sg = dc < 0 ? -1 : 1
+    for (let lo = -180; lo <= 180; lo += 2) p += `${p ? 'L' : 'M'}${lo + 180} ${(NORTH - Math.atan2(-sg * cos(lo - ls) * cos(dc), sg * sin(dc)) / R).toFixed(1)}`
+    set('.sc-line', 'd', p)
+    // The sun, and a clearing in the land under it, on whole pixels. Before this they wait off the map.
+    for (const k of ['.sc-sun', '.sc-mk']) { set(k, 'cx', round(ls + 180)); set(k, 'cy', round(NORTH - dc)) }
+    // The sun's track: today it keeps to one latitude, its declination, within half a degree.
+    set('.sc-trk', 'd', `M0 ${round(NORTH - dc)}H${COLS * CELL}`)
+    const now = fmt.format(t), [w, at] = next(t), ev = `sun${w} ${fmt.format(at)}`, lit = alt(LAT, LON) > sin(-0.833) ? 'day' : 'night', [up, down] = day(t)
+    set('svg', 'aria-label', `Charlotte, ${now}, ${lit}, ${ev}`)
+    const ph = phaseAt(t), nx = till(t)
+    Object.assign(el.dataset, { day: lit, now, date: dfmt.format(t), next: w, nextAt: fmt.format(at), rise: fmt.format(up), set: fmt.format(down),
+      phase: ph.name, till: nx?.start ?? '', tillAt: nx ? fmt.format(nx.at) : '' })
+    const tm = el.querySelector('time'), rd = el.querySelector<HTMLElement>('.sc-read')
+    if (!tm || !rd) return
+    tm.textContent = tm.dateTime = now // a valid time string: Charlotte's hour and minute
+    q('.sc-ev').textContent = ev
+    rd.hidden = false
+  }
+
+  // Once a minute, on the minute, only while a clock is in view and the tab is showing; coming back
+  // into view or to the tab redraws at once. A pinned clock draws once.
+  const els = document.querySelectorAll<HTMLElement>('.sunclock'), live = new Set<HTMLElement>()
+  let timer = 0
+  const tick = () => {
+    clearTimeout(timer)
+    if (document.hidden || !live.size) return
+    const t = Date.now()
+    live.forEach((el) => el.dataset.at || draw(el, t))
+    timer = setTimeout(tick, 6e4 - (t % 6e4))
+  }
+  // ponytail: no IntersectionObserver fallback; every browser the site supports has it.
+  const io = new IntersectionObserver((es) => {
+    for (const { target, isIntersecting } of es) {
+      const el = target as HTMLElement
+      if (isIntersecting) el.classList.add('in')
+      live[isIntersecting ? 'add' : 'delete'](el)
+    }
+    tick()
+  })
+  const redraw = (el: HTMLElement) => draw(el, Date.parse(el.dataset.at!) || Date.now())
+  els.forEach((el) => {
+    redraw(el); io.observe(el)
+    new MutationObserver(() => redraw(el)).observe(el, { attributeFilter: ['data-at'] })
+  })
+  document.addEventListener('visibilitychange', tick)
+</script>
+
+<style>
+  .sunclock { width: var(--sc-w, 360px); max-width: 100%; }
+  .sc-read { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 8px; font-size: 0.875rem; line-height: 1.25rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .sc-read[hidden] { display: none; }
+  .q { color: var(--sc-quiet, var(--graphite)); }
+  svg { width: 100%; height: auto; overflow: hidden; }
+  use { fill: none; stroke-width: 3px; stroke-dasharray: 3 1; }
+  .sc-dy { stroke: currentColor; }
+  /* Night and twilight are the ink thinned, so they follow any ground: dots at 60%, squares at 40%. */
+  .sc-tw { stroke: var(--sc-dusk, color-mix(in srgb, currentColor 40%, transparent)); }
+  .sc-n { stroke: var(--sc-night, color-mix(in srgb, currentColor 60%, transparent)); stroke-width: 1px; stroke-dasharray: 0 1 1 2; }
+  .sc-trk { fill: none; stroke: var(--sc-track, none); stroke-width: 0.5px; stroke-dasharray: 1 3; }
+  .sc-line { fill: none; stroke: var(--sc-quiet, var(--graphite)); stroke-width: 1px; }
+  .sc-ring { fill: none; stroke: currentColor; stroke-width: 1px; }
+  .sc-sun { fill: currentColor; }
+  .sc-mk { fill: #000; }
+  .sc-clt { fill: var(--signal); }
+  /* One entrance: the map uncovers west to east, 600 ms. With no script or reduced motion, html has
+     no .motion and the map simply stands. */
+  :global(.motion) .sunclock svg { clip-path: inset(0); transition: clip-path 600ms var(--ease); }
+  :global(.motion) .sunclock:not(.in) svg { clip-path: inset(0 100% 0 0); }
+</style>

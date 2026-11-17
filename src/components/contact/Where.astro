@@ -1,0 +1,112 @@
+---
+import { CLT, CELL, NORTH } from '../../data/land'
+import AskA from '../ask/AskA.astro'
+import SunClock from '../foot/SunClock.astro'
+// /contact (11 November): the contact block as the page's head, then where and when. The sun clock
+// runs the page's width; one sentence beside Charlotte's square, out over the Atlantic, says what light
+// it is there (night, dawn, daybreak, golden hour, day, dusk, nightfall) and until when. A glass slider drags the map through the next 24 hours
+// and the sentence follows; Now brings it back. On load, with motion on, the map plays the last 24
+// hours in 2 seconds and settles on now. Every word is read off the clock's own data attributes, so
+// it never disagrees with the map, and nothing about the visitor is read. Without script the map
+// shows land in day; the sentence, the slider and the times are not shown.
+// Charlotte's cell centre, as a share of the map (SunClock draws one 4-degree cell per 4 units).
+const x = ((Math.floor((CLT[1] + 180) / CELL) * CELL + 1.5) / 360) * 100
+const y = ((Math.floor((NORTH - CLT[0]) / CELL) * CELL + 1.5) / 132) * 100
+---
+<AskA h1 />
+<section class="cw w" aria-label="Charlotte, day and night">
+  <div class="cw-map" style={`--x: ${x.toFixed(2)}%; --y: ${y.toFixed(2)}%`}>
+    <SunClock read={false} />
+    <p class="cw-say" aria-live="polite"></p>
+  </div>
+  <div class="cw-ctl">
+    <button class="button cw-now" type="button">Now</button>
+    <label class="rs-b cw-rs"><span class="rs-in"><span class="rs-track" aria-hidden="true"><i></i></span><input type="range" min="0" max="1440" step="15" value="0" aria-label="Hours ahead in Charlotte" /></span><output></output></label>
+    <p class="cw-sun"></p>
+  </div>
+</section>
+
+<style>
+  .cw { padding-block: 120px 160px; }
+  /* The map: a whole number of 180 px wide, so each square lands on whole device pixels at 2x. */
+  .cw-map { position: relative; width: round(down, 100%, 180px); container-type: inline-size; --sc-w: 100%; --sc-track: color-mix(in srgb, var(--carbon) 45%, transparent); }
+  /* Out from Charlotte's square over the Atlantic: a 1 px leader, then the sentence on the ground. */
+  .cw-say { position: absolute; left: calc(var(--x) + 1.2%); top: var(--y); translate: 0 -50%; display: flex; align-items: center; max-width: 19%; font-size: clamp(0.875rem, 1.45cqw, 1.125rem); line-height: 1.4; text-wrap-style: balance; }
+  /* Without script (no html.js) there is nothing to say and nothing to drag. */
+  :global(html:not(.js)) :is(.cw-say, .cw-ctl) { display: none; }
+  .cw-say::before { content: ""; flex: none; width: 28px; height: 1px; margin-right: 10px; background: var(--carbon); }
+  .cw-say :global(span) { padding: 4px 8px 4px 0; background: var(--ground); }
+
+  /* Under the map one row: Now, the slider over the next 24 hours with Charlotte's time at its end,
+     and the day's sunrise and sunset. */
+  .cw-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 32px; width: round(down, 100%, 180px); margin-top: 32px; }
+  .cw-now { margin-top: 0; }
+  .cw-rs { flex: 1 1 20rem; max-width: 36rem; font-size: 0.875rem; line-height: 1.25rem; }
+  .cw-rs output { width: 3.5em; color: var(--carbon); }
+  .cw-sun { margin-left: auto; font-size: 0.875rem; line-height: 1.25rem; color: var(--graphite); font-variant-numeric: tabular-nums; }
+
+  /* Too narrow to write over the map: the sentence under it. */
+  @media (max-width: 1199px) {
+    .cw { padding-top: 96px; }
+    .cw-map { width: 100%; }
+    .cw-say { position: static; translate: none; max-width: none; min-height: 3em; margin-top: 16px; font-size: 1rem; }
+    .cw-say::before { display: none; }
+    .cw-ctl { width: 100%; margin-top: 16px; }
+  }
+  @media (max-width: 899px) {
+    .cw { padding-block: 72px 96px; }
+    .cw-rs { flex-basis: calc(100% - 120px); }
+    .cw-sun { margin-left: 0; }
+  }
+</style>
+
+<script>
+  // PRIVACY: reads only the clock's own data attributes (Charlotte, from the current instant). Nothing
+  // about the visitor, no request.
+  const ease = 'cubic-bezier(0.22, 1, 0.36, 1)'
+  for (const cw of document.querySelectorAll<HTMLElement>('.cw')) {
+    const clock = cw.querySelector<HTMLElement>('.sunclock')!, say = cw.querySelector<HTMLElement>('.cw-say')!
+    const ctl = cw.querySelector<HTMLElement>('.cw-ctl')!, range = ctl.querySelector('input')!, out = ctl.querySelector('output')!
+    const sunp = ctl.querySelector('.cw-sun')!, d = clock.dataset
+    let sweeping = false, today = ''
+    // The sentence and the readout, from what the clock last drew.
+    const read = () => {
+      if (sweeping) return
+      out.textContent = d.now!
+      if (!d.at) {
+        today = d.date!
+        say.innerHTML = `<span>It is ${d.phase} in Charlotte until ${d.till} at ${d.tillAt}.</span>`
+        sunp.textContent = `Sunrise ${d.rise}, sunset ${d.set} in Charlotte today`
+      } else say.innerHTML = `<span>At ${d.now}${d.date === today ? '' : ' tomorrow'} it will be ${d.phase} in Charlotte, until ${d.till} at ${d.tillAt}.</span>`
+      range.setAttribute('aria-valuetext', `${d.now} in Charlotte`)
+    }
+    new MutationObserver(read).observe(clock, { attributeFilter: ['data-now', 'data-at'] })
+    read()
+
+    // The slider: minutes from now. At 0 the clock runs live.
+    const to = (m: number) => { if (m) d.at = new Date(Date.now() + m * 6e4).toISOString(); else delete d.at }
+    range.addEventListener('input', () => { sweeping = false; to(+range.value) })
+    ctl.querySelector('.cw-now')!.addEventListener('click', () => {
+      range.value = '0'; range.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+
+    // The sweep, once, as the map first comes into view: the last 24 hours in 2 seconds on the site's
+    // curve, read off a Web Animation so the timing is the browser's. Off without motion.
+    if (!document.documentElement.classList.contains('motion')) continue
+    const io = new IntersectionObserver(([en]) => {
+      if (!en.isIntersecting) return
+      io.disconnect()
+      const a = clock.animate([{}, {}], { duration: 2000, easing: ease }), t0 = Date.now()
+      sweeping = true
+      const step = () => {
+        if (!sweeping) return a.cancel()
+        const p = a.effect!.getComputedTiming().progress ?? 1
+        if (a.playState === 'finished') { sweeping = false; delete d.at; return read() }
+        d.at = new Date(t0 - (1 - p) * 864e5).toISOString()
+        requestAnimationFrame(step)
+      }
+      requestAnimationFrame(step)
+    }, { threshold: 0.4 })
+    io.observe(clock)
+  }
+</script>

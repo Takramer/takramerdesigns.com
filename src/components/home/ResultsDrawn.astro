@@ -1,0 +1,220 @@
+---
+import Arrow from '../Arrow.astro'
+import { BY } from '../../data/projects'
+import { EXPERIENCE } from '../../data/site'
+// Results, drawn (third pass, 14 November): one result per project, each drawn as the thing itself, not
+// a count of squares: the calls a brief makes merging into one, prices ticking in two kinds of figures,
+// people for impressions, body text at its real size. Every number comes from the case data, and the
+// build stops if one drifts.
+const fig = (slug: string, i: number) => BY[slug].figures![i][0]
+const must = (src: string, s: string, where: string) => { if (!src.includes(s)) throw new Error(`ResultsDrawn.astro: "${s}" is no longer in ${where}`) }
+const int = (s: string) => Number(s.replace(/,/g, ''))
+const k = (n: number) => n.toLocaleString('en-US')
+const sq = (n: number) => Array.from({ length: n }, (_, i) => i)
+
+// Underline: the API calls behind a brief, before and after the data layer was rebuilt.
+const um = BY.underline.outcomes!.join(' ').match(/Consolidated (\d+) API calls into (\d+); data now loads in about (\d+) ms cold/)
+if (!um) throw new Error('ResultsDrawn.astro: Underline\'s outcomes no longer read "Consolidated N API calls into N; data now loads in about N ms cold"')
+const [calls, call, cold] = [um[1], um[2], um[3]].map(Number)
+// The calls run in at even heights on a 128-unit drawing and meet at its middle.
+const LANES = sq(calls).map((i) => 8 + (i * 112) / (calls - 1))
+
+// Nydex: no layout shift, because every price column is set in tabular figures. The same sample prices,
+// chosen with many 1s and 8s (the narrowest and widest figures), in proportional and tabular figures.
+must(fig('nydex', 0), '0', 'projects.ts (Nydex figures)')
+must(BY.nydex.outcomes!.join(' '), 'Calibrated price columns to tabular numerals', 'projects.ts (Nydex outcomes)')
+const PRICES = ['118.41', '186.07', '141.19', '208.55', '111.71', '89.36']
+
+// Campaigns: one figure for 5,000 impressions, a tower for each week.
+const PER = 5000
+const hcw = int(fig('healthy-campus-week', 1)) / PER, lyb = int(fig('love-your-body-week', 1)) / PER
+const ppl = int(BY['love-your-body-week'].impact.match(/reached about ([\d,]+) people/)![1])
+if (![hcw, lyb].every(Number.isInteger)) throw new Error('ResultsDrawn.astro: a campaign figure is no longer a whole number of 5,000s')
+if (Math.max(hcw, lyb) > 30) throw new Error('ResultsDrawn.astro: a campaign tower no longer fits 6 rows of 5')
+must(BY['healthy-campus-week'].impact, `reached about ${k(ppl)} people`, 'projects.ts (Healthy Campus Week impact)')
+must(EXPERIENCE[1].line, `reached about ${k(ppl)} people and ${k((hcw + lyb) * PER)} impressions`, 'site.ts (EXPERIENCE)')
+
+// Grace One: mobile body text, before and after, set at its real size in two cropped phones. The words
+// are the site's own first-Sunday steps (see the gallery in projects.ts).
+const gm = BY['grace-one-church'].outcomes!.join(' ').match(/mobile body text from (\d+) px to a (\d+) px floor/)
+if (!gm) throw new Error('ResultsDrawn.astro: Grace One\'s outcomes no longer read "mobile body text from N px to a N px floor"')
+const [px0, px1] = [Number(gm[1]), Number(gm[2])]
+must(BY['grace-one-church'].facts[0], 'Framer build', 'projects.ts (Grace One facts)')
+const STEPS = 'Your first Sunday: park, walk in, find your class, find a seat. See you soon.'
+
+const CELLS = [
+  { slug: 'underline', v: [String(calls), ` to ${call}`], c: `API calls behind a brief, merged into one; it loads in about ${cold} ms cold`,
+    k1: [[`${calls} calls`, '0%'], [`${call} call`, 'auto']], k2: '1 line = 1 call',
+    alt: `${calls} thin lines, one for each API call a brief used to make, run in from the left and merge into one line, the single call Thomas replaced them with; data now loads in about ${cold} ms cold.` },
+  { slug: 'nydex', v: ['0'], c: 'layout shift as live prices tick: every price column is set in tabular figures',
+    k1: [['Proportional', '0%'], ['Tabular, as in Nydex', '50%']], k2: '6 sample prices, ticking',
+    alt: `Two columns of the same ${PRICES.length} sample prices. In proportional figures their decimal points and right edges wander, and move again as the prices tick; in tabular figures, as Nydex sets them, they stay in line, so the layout never shifts.` },
+  { slug: 'love-your-body-week', v: [k((hcw + lyb) * PER)], c: `impressions from Healthy Campus Week and Love Your Body Week, which reached about ${k(ppl)} people`,
+    k1: [[`${(hcw * PER) / 1000}k`, '0px'], [`${(lyb * PER) / 1000}k`, 'var(--tw)']], k2: `1 figure = ${k(PER)} impressions`,
+    alt: `Two towers of small figures of people, one for ${k(PER)} impressions: ${hcw} for Healthy Campus Week, ${lyb} for Love Your Body Week, ${k((hcw + lyb) * PER)} in all.` },
+  { slug: 'grace-one-church', v: [String(px0), ` to ${px1} px`], c: 'mobile body text, raised to a floor that reads at arm’s length, in Thomas’s Framer build',
+    k1: [[`Before, ${px0} px`, '0%'], [`After, ${px1} px`, '50%']], k2: 'Shown at real size',
+    alt: `Two phone screens, cropped, with the same line of the church’s site: on the left at ${px0} px, small and gray; on the right at ${px1} px, larger and dark, the size Thomas set as the floor.` },
+] as { slug: string; v: string[]; c: string; k1: [string, string][]; k2: string; alt: string }[]
+---
+<section class="more sec w" aria-labelledby="rx-h" data-rx>
+  <h2 id="rx-h" class="work-h">Results</h2>
+  <ul class="rx-list">
+    {CELLS.map(({ slug, v, c, k1, k2, alt }) => (
+      <li class="rc">
+        <p class="rv">{v[0]}{v[1] && <span class="late">{v[1]}</span>}</p>
+        <p class="rcap">{c}</p>
+        <div class="rd" role="img" aria-label={alt}><div class:list={['dr', `dr-${slug}`]} aria-hidden="true">
+          {slug === 'underline' && <>
+            <svg class="fan" viewBox="0 0 240 128" preserveAspectRatio="none">
+              {LANES.map((y, i) => <path class="a" style={`--d: ${i * 50}ms`} d={`M0 ${y} H96 C136 ${y} 132 64 172 64`} />)}
+              <path class="one" d="M172 64 H240" />
+            </svg>
+            <span class="node" />
+          </>}
+          {slug === 'nydex' && <>
+            <span class="px prop">{PRICES.map((p) => <span>{p}</span>)}</span>
+            <span class="px tab">{PRICES.map((p) => <span>{p}</span>)}</span>
+          </>}
+          {slug === 'love-your-body-week' && [hcw, lyb].map((n, t) => (
+            <span class:list={['tw', { t2: t === 1 }]}>{sq(n).map((i) => <i style={`--d: ${t * 80 + i * 18}ms`} />)}</span>
+          ))}
+          {slug === 'grace-one-church' && <>
+            <span class="ph"><span class="ph-t" style={`--fs: ${px0}px`}>{STEPS}</span></span>
+            <span class="ph after"><span class="ph-t" style={`--fs: ${px1}px`}>{STEPS}</span></span>
+          </>}
+        </div></div>
+        <div class="rk" aria-hidden="true">
+          <p class="k1">{k1.map(([t, at]) => <span class:list={{ end: at === 'auto' }} style={at === 'auto' ? undefined : `--x: ${at}`}>{t}</span>)}</p>
+          <p class="k2">{k2}</p>
+        </div>
+        <a class="rn" href={`/projects/${slug}`}><span class="t">{BY[slug].name}</span><Arrow /></a>
+      </li>
+    ))}
+  </ul>
+</section>
+
+<script>
+  // Once in view each drawing plays once: Underline's calls draw in and merge, the people stand up a
+  // row at a time, Grace One's text grows to its floor. Nydex's prices then tick while the section is in
+  // view. Without script or under reduced motion html has no .motion, and the HTML's final state stands.
+  const html = document.documentElement
+  for (const sec of document.querySelectorAll<HTMLElement>('[data-rx]')) {
+    sec.querySelectorAll<HTMLElement>('.rc').forEach((c, k) => c.style.setProperty('--late', `${k * 80 + 600}ms`))
+    if (!html.classList.contains('motion') || !('IntersectionObserver' in window)) continue
+    sec.classList.add('wait')
+    const rows = [...sec.querySelectorAll<HTMLElement>('.dr-nydex .prop > span')]
+    const tabs = [...sec.querySelectorAll<HTMLElement>('.dr-nydex .tab > span')]
+    let timer = 0
+    // ponytail: one random row a tick, its last two figures redrawn; the same value in both columns.
+    const tick = () => {
+      const i = Math.floor(Math.random() * rows.length)
+      const w = rows[i].textContent!.split('.')[0]
+      rows[i].textContent = tabs[i].textContent = `${w}.${String(Math.floor(Math.random() * 100)).padStart(2, '0')}`
+    }
+    const io = new IntersectionObserver(([en]) => {
+      if (en.isIntersecting) {
+        requestAnimationFrame(() => sec.classList.remove('wait'))
+        if (!timer) timer = window.setInterval(tick, 420)
+      } else if (timer) { clearInterval(timer); timer = 0 }
+    }, { threshold: 0.35 })
+    io.observe(sec.querySelector('.rx-list')!)
+  }
+</script>
+
+<style>
+  /* Four cells on one subgrid, so figure, caption, drawing, key and link sit on shared lines across a row. */
+  .rx-list { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 56px var(--g); margin-top: 56px; }
+  .rc {
+    --p: 8px; position: relative; display: grid; grid-row: span 5; grid-template-rows: subgrid; row-gap: 0; padding-top: 24px;
+    /* The cell is the link: the 1 px rule on top thickens to 2 on hover or focus, drawn as a background so nothing moves. */
+    background: linear-gradient(currentColor, currentColor) no-repeat 0 0 / 100% 1px;
+    transition: background-size var(--vt) var(--ease);
+  }
+  /* One pitch for every drawing: 8 px, or 10 px once the cell is 400 px wide. The drawing and its key are
+     the size containers (on the cell, containment would switch its subgrid off). */
+  .rd, .rk { container-type: inline-size; }
+  @container (min-width: 400px) { .dr, .k1 { --p: 10px; } }
+  .rc:has(.rn:is(:hover, :focus-visible)) { background-size: 100% 2px; }
+  .rc:has(.rn:focus-visible) { outline: 2px solid var(--carbon); outline-offset: 6px; }
+  .rn { display: inline-flex; align-items: center; gap: 10px; align-self: start; justify-self: start; padding-top: 20px; font-size: 1rem; line-height: 1.5rem; text-decoration: none; -webkit-tap-highlight-color: transparent; }
+  .rn:focus-visible { outline: none; }
+  .rn::after { content: ""; position: absolute; inset: 0; }
+  /* The underline draws on the arrow's clock (--vt), so the two finish together. */
+  .rn .t { background: linear-gradient(currentColor, currentColor) no-repeat 100% 100% / 0 1px; transition: background-size var(--vt) var(--ease); }
+  .rc:has(.rn:is(:hover, :focus-visible)) .rn .t { background-position: 0 100%; background-size: 100% 1px; }
+  .rn :global(.arr) { flex: none; width: 20px; height: 14px; }
+  /* html carries .motion, and html has no scope attribute: unscoped, or the arrow never moves. */
+  :global(.motion) .rc:has(.rn:is(:hover, :focus-visible)) .rn :global(.arr path) { animation: pass-on var(--vt) var(--ease); }
+  @media (pointer: coarse) { .rn { min-height: 44px; padding-top: 10px; } }
+
+  /* The figure first, in Endless, then a caption of two lines at most. */
+  .rv { font: 400 2.5rem/1 var(--display); line-height: round(up, 1em, 4px); letter-spacing: var(--tr-endless); white-space: nowrap; }
+  .rcap { margin-top: 12px; max-width: 22em; font-size: 1rem; line-height: 1.5rem; color: var(--graphite); }
+
+  /* The drawing: 144 px tall on a 1 px baseline, the same in every cell, so the four read as a set. */
+  .rd { position: relative; height: 144px; margin-top: 32px; border-bottom: 1px solid var(--carbon); overflow: hidden; }
+  .dr { position: relative; height: 100%; }
+  .dr i { display: block; }
+
+  /* Underline: nine 1 px lanes run in and merge into one 2 px line, ending on an orange node. The svg
+     stretches to the cell; the strokes keep their weight. */
+  .fan { position: absolute; inset: 0 0 16px; width: 100%; height: 128px; overflow: visible; }
+  .fan path { fill: none; stroke: var(--carbon); stroke-width: 1px; vector-effect: non-scaling-stroke; stroke-dasharray: 1000; stroke-dashoffset: 0; }
+  /* ponytail: a 1000 px dash outlasts any lane at any width; pathLength would not survive non-scaling-stroke. */
+  .fan .one { stroke-width: 2px; }
+  .node { position: absolute; right: 0; top: 62px; width: 4px; height: 4px; background: var(--signal); }
+
+  /* Nydex: the same prices in two columns, proportional on the left, tabular on the right. Each column's
+     right edge is a hairline: pewter where the figures wander off it, orange where they hold. */
+  .dr-nydex { display: grid; grid-template-columns: 1fr 1fr; align-items: end; padding-bottom: 8px; }
+  .px { display: grid; justify-items: end; justify-self: start; padding-right: 6px; font-size: 0.875rem; line-height: 1.25rem; color: var(--carbon); }
+  .prop { font-variant-numeric: proportional-nums; box-shadow: 1px 0 var(--pewter); }
+  .tab { font-variant-numeric: tabular-nums; box-shadow: 1px 0 var(--signal); }
+  .prop > span { justify-self: start; }
+
+  /* Campaigns: towers of people five wide, filled from the baseline up, a row at a time. */
+  .dr-love-your-body-week { --fw: calc(var(--p) + 2px); --tw: calc(5 * var(--fw) + 4 * 3px + 3 * var(--p)); display: flex; align-items: flex-end; gap: calc(3 * var(--p)); }
+  .tw { display: flex; flex-wrap: wrap-reverse; gap: 2px 3px; width: calc(5 * var(--fw) + 4 * 3px); }
+  .tw i {
+    width: var(--fw); height: calc(var(--fw) * 1.8); background: var(--carbon);
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 18'%3E%3Ccircle cx='5' cy='3.5' r='3'/%3E%3Cpath d='M1 18V10.5Q1 8 3.5 8h3Q9 8 9 10.5V18z'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
+    transform-origin: 50% 100%;
+  }
+  .t2 i { background: var(--pewter); }
+
+  /* Grace One: two phones cropped by the baseline, the same words at real size in each. */
+  .dr-grace-one-church { display: grid; grid-template-columns: 1fr 1fr; gap: var(--p); align-items: end; }
+  .ph { position: relative; height: 128px; padding: 14px 10px 0; border: 1px solid var(--carbon); border-bottom: 0; overflow: hidden; }
+  .ph::before { content: ""; position: absolute; inset: 0 0 auto; height: 4px; background: var(--carbon); }
+  .ph-t { display: block; font-size: var(--fs); line-height: 1.5; color: var(--graphite); }
+  .after .ph-t { color: var(--carbon); }
+
+  /* The key under the baseline: labels ticked at the column they name, then the drawing's own scale. */
+  .rk { margin-top: 8px; font-size: 0.875rem; line-height: 1.25rem; color: var(--graphite); white-space: nowrap; }
+  .k1 { position: relative; height: 20px; }
+  .rc:has(.dr-love-your-body-week) .k1 { --fw: calc(var(--p) + 2px); --tw: calc(5 * var(--fw) + 4 * 3px + 3 * var(--p)); }
+  .k1 span { position: absolute; left: var(--x, 0); padding-left: 4px; border-left: 1px solid var(--carbon); }
+  .k1 span.end { left: auto; right: 0; padding: 0 4px 0 0; border-left: 0; border-right: 1px solid var(--carbon); }
+  .k2 { margin-top: 2px; }
+
+  /* Motion: once, on entering view (script above). */
+  .fan .a { transition: stroke-dashoffset 520ms var(--ease) var(--d, 0ms); }
+  .fan .one { transition: stroke-dashoffset 280ms var(--ease) 640ms; }
+  .node { transition: scale 200ms var(--ease) 880ms; }
+  .tw i { transition: scale 220ms var(--ease) var(--d, 0ms); }
+  .after .ph-t { transition: font-size 520ms var(--ease) 320ms, color 520ms var(--ease) 320ms; }
+  .late { transition: opacity 240ms var(--ease) var(--late, 0ms); }
+  .wait .fan path { stroke-dashoffset: 1000; }
+  .wait .node { scale: 0; }
+  .wait .tw i { scale: 1 0; }
+  .wait .after .ph-t { font-size: 12px; color: var(--graphite); }
+  .wait .late { opacity: 0; }
+  /* Hiding is instant; only the reveal plays. */
+  .wait :is(.fan path, .node, .tw i, .after .ph-t, .late) { transition: none; }
+
+  @media (max-width: 1279px) { .rx-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 899px) { .rx-list { margin-top: 32px; row-gap: 40px; } }
+  @media (max-width: 599px) { .rx-list { grid-template-columns: minmax(0, 1fr); } }
+  @media print { .wait :is(.fan path, .node, .tw i, .after .ph-t, .late) { stroke-dashoffset: 0; scale: none; opacity: 1; font-size: var(--fs); } }
+</style>

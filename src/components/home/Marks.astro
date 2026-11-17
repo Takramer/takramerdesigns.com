@@ -1,0 +1,47 @@
+---
+import Arrow from '../Arrow.astro'
+import { mark } from '../../lib/marks'
+// Marks (home): six client marks from /logos, each on its stone cell. The cells are /logos' own
+// .lens markup, so site.js draws each one in once as it comes into view (marksDraw: anchor points,
+// outline, fill) and the logos page's CSS shapes it. Without script or under reduced motion each
+// mark stands finished. A cell is a picture inside a link to /logos, not the page's 400% lens: it
+// takes no pointer, so site.js's zoom never fires here.
+// ponytail: names copied from logos.astro's LOGOS, client marks only (no Concept, no For sale).
+const PICKS: [slug: string, name: string][] = [
+  ['hcw', 'Healthy Campus Week'],
+  ['polarplunge', 'Polar Plunge'],
+  ['soj', 'Spirit of Joy'],
+  ['aapihm', 'AAPI Heritage Month'],
+  ['goodword', 'Good Word'],
+  ['lybw', 'Love Your Body Week'],
+]
+const marks = PICKS.map(([slug, name]) => ({ name, ...mark(slug), slug }))
+---
+<section class="mk more sec w" aria-labelledby="marks-h">
+  <h2 id="marks-h" class="work-h">Marks</h2>
+  <ul class="mk-row">
+    {marks.map((m) => (
+      <li>
+        <a href={`/logos?mark=${m.slug}`}>
+          <span class="lens" aria-hidden="true"><svg viewBox={m.box} focusable="false"><g class="zoom"><g transform={m.shift}>{m.paths.map((d) => <path class="ink" d={d} pathLength="1" />)}<path class="anchors" d={m.anchors} /></g></g></svg></span>
+          <span class="mk-cap"><span class="n">{m.name}</span><span class="sr"> logo</span></span>
+        </a>
+      </li>
+    ))}
+  </ul>
+  <p class="read"><a href="/logos"><span>All logos</span><Arrow /></a></p>
+</section>
+
+<style>
+  .mk-row { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 32px var(--g); margin-top: 56px; }
+  .mk-row a { display: block; text-decoration: none; -webkit-tap-highlight-color: transparent; }
+  .mk-row a:focus-visible { outline-offset: 6px; }
+  /* The link takes the pointer, so the cell's own zoom and its zoom-in cursor stay off. */
+  .mk-row .lens { pointer-events: none; }
+  .mk-cap { display: block; }
+  .mk-row a:is(:hover, :focus-visible) .n { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 5px; }
+  .mk .read { margin-top: 48px; }
+  @media (max-width: 1279px) { .mk-row { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  @media (max-width: 899px) { .mk-row { margin-top: 32px; } .mk .read { margin-top: 40px; } }
+  @media (max-width: 599px) { .mk-row { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 24px; } }
+</style>

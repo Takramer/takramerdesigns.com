@@ -1,0 +1,63 @@
+---
+import Arrow from '../Arrow.astro'
+import { EXPERIENCE, EDUCATION, RESUME_PDF, MAILTO, EMAIL, PERSON } from '../../data/site'
+// At a glance (home, under the cover): a recruiter's screening questions, answered in five seconds.
+// Experience comes from site.ts; the build stops if the degree's date changes there.
+const bfa = EDUCATION[0]
+const place = PERSON.homeLocation
+// Design tools first, then the build tools (Thomas, 11 November: his list; 14 November: more of the
+// tools the case pages name, so no check against the data).
+const TOOLS = ['Figma', 'Illustrator', 'Photoshop', 'InDesign', 'Procreate', 'Linearity Curve', 'Framer', 'Webflow', 'React', 'Vite', 'Astro', 'Cloudflare', 'Vercel', 'Supabase', 'Stripe', 'Meta Ads', 'Claude Code']
+// Each role on one line: title, the place without its university (that reads as Education), the years.
+// The current role only (Thomas, 14 November); the two campus roles stay on About's full record.
+const years = (d: string) => { const y = d.match(/\d{4}/g)!; return d.endsWith('present') ? `${y[0]} to present` : y[0] === y.at(-1) ? y[0] : `${y[0]} to ${y.at(-1)}` }
+const JOBS = EXPERIENCE.filter((e) => e.dates.endsWith('present')).map((e) => `${e.title}, ${e.where.split(', ')[0]}, ${years(e.dates)}`)
+
+const ROWS: [key: string, value: string[], span: 'wide' | ''][] = [
+  ['Open to', ['Full-time roles in brand design, product design and design engineering; also select client work.'], 'wide'],
+  ['Based in', [`${place.name}, ${place.containedInPlace.name}`], ''],
+  ['Education', [`${bfa.title}, ${bfa.where}`], ''],
+  ['Experience', JOBS, 'wide'],
+  ['Tools', [TOOLS.join(', ')], 'wide'],
+]
+---
+<section class="gl more sec w" aria-labelledby="glance-h">
+  <h2 id="glance-h" class="work-h">At a glance</h2>
+  <dl class="gl-dl">
+    {ROWS.map(([k, v, span]) => (
+      <div class={span || undefined}>
+        <dt class="label">{k}</dt>
+        {v.map((line) => <dd>{line}</dd>)}
+        {k === 'Experience' && <dd class="read gl-rec"><a href="/about#rec-h"><span>Full record</span><Arrow /></a></dd>}
+      </div>
+    ))}
+  </dl>
+  <div class="gl-act">
+    <p class="gl-cv"><a class="button" href={RESUME_PDF} download>Download resume<Arrow down /><span class="sr"> (PDF)</span></a></p>
+    <p class="read"><a href={MAILTO}><span>{EMAIL}</span><Arrow /></a></p>
+    <p class="read"><a href="/about"><span>About Thomas</span><Arrow /></a></p>
+  </div>
+</section>
+
+<style>
+  /* Five answers on the 24 columns: the two long ones take half the row, the short ones a quarter. */
+  .gl-dl { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); gap: 40px var(--g); margin-top: 56px; }
+  .gl-dl > div { grid-column: span 6; padding-top: 16px; border-top: 1px solid var(--carbon); }
+  .gl-dl > .wide { grid-column: span 12; }
+  .gl-dl dd { margin-top: 12px; font-size: 1.125rem; line-height: 1.75rem; }
+  .gl-dl dd + dd { margin-top: 0; }
+  .gl-dl .gl-rec { margin-top: 20px; font-size: 1rem; }
+  .gl-act { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 48px; margin-top: 48px; }
+  .gl-act .read { margin-top: 0; }
+  .gl-cv { display: flex; flex-wrap: wrap; align-items: center; column-gap: 16px; }
+  .gl-cv .button { margin-top: 0; }
+  .gl-cv > span { font-size: 0.875rem; line-height: 1.25rem; color: var(--graphite); }
+  @media (max-width: 1279px) {
+    .gl-dl > div, .gl-dl > .wide { grid-column: span 12; }
+  }
+  @media (max-width: 899px) {
+    .gl-dl { margin-top: 32px; column-gap: 0; row-gap: 32px; }
+    .gl-dl > div, .gl-dl > .wide { grid-column: 1 / -1; }
+    .gl-act { margin-top: 40px; column-gap: 32px; }
+  }
+</style>

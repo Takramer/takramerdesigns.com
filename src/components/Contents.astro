@@ -1,0 +1,34 @@
+---
+// Contents on a long page (Thomas, 7 November; glass, 10 November): numbered links to each section's
+// heading, in one glass capsule that stays under the bar while the page scrolls beneath it. The
+// section in view is marked; on a narrow window the capsule scrolls sideways and keeps the marked
+// link in sight.
+interface Props { items: [id: string, label: string][] }
+const { items } = Astro.props
+---
+<nav class="toc" aria-label="Contents">
+  <ol>{items.map(([id, label], i) => <li><a href={`#${id}`}><span class="num">{String(i + 1).padStart(2, '0')}</span>{label}</a></li>)}</ol>
+</nav>
+<script>
+  const toc = document.querySelector<HTMLElement>('.toc')
+  const list = toc?.querySelector('ol')
+  if (toc && list) {
+    const links = [...toc.querySelectorAll<HTMLAnchorElement>('a')]
+    const heads = links.map((a) => document.getElementById(a.hash.slice(1)))
+    let on = -1
+    const mark = () => {
+      // The section whose heading last passed under the bar and the capsule. A jump parks a heading at
+      // 168 (html's 128 px scroll-padding plus its 40 px scroll-margin), so the line sits below that.
+      let i = -1
+      heads.forEach((h, k) => { if (h && h.getBoundingClientRect().top < 200) i = k })
+      if (innerHeight + scrollY >= document.documentElement.scrollHeight - 2) i = links.length - 1
+      if (i === on) return
+      on = i
+      links.forEach((a, k) => (k === i ? a.setAttribute('aria-current', 'location') : a.removeAttribute('aria-current')))
+      const a = links[i]
+      if (a) list.scrollTo({ left: a.offsetLeft - (list.clientWidth - a.offsetWidth) / 2, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
+    }
+    addEventListener('scroll', mark, { passive: true })
+    mark()
+  }
+</script>

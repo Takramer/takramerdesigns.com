@@ -1,0 +1,89 @@
+---
+import Arrow from '../Arrow.astro'
+import { load, view, days, FEED } from '../../lib/usage'
+// The token panel for home, one slim band (Thomas, 11 November: "more aware of space"): the count,
+// one line, the last 26 weeks of Claude Code at About's fixed 8 px square, and the link. Same
+// build-time data as Usage.astro; the chart's squares are .sq in site.css.
+const u = await load()
+const v = view(u)
+const { all, months } = days(v.today)
+// 40 weeks, as on About, so the chart runs wider at the same height; under 600 px the last 26.
+const WEEKS = 40, PHONE = 26
+const from = all.length - WEEKS * 7
+const shown = all.slice(from)
+const marks = months.filter((m) => m.col - 1 >= from).map((m) => ({ name: m.name, w: Math.floor((m.col - 1 - from) / 7) })).filter((m) => m.w < WEEKS - 2) // a month begun in the last two weeks has no room for its name; it waits
+const tick = (n: number | null) => (n ? `--v: ${n}` : undefined)
+---
+<section class="burn more sec w" aria-labelledby="burn-h" data-burn data-generated={u.generatedAt} data-feed={FEED}>
+  <div class="burn-band">
+    <div class="burn-text">
+      <h2 id="burn-h" class="burn-h">Claude Code token burn</h2>
+      <p class="burn-total"><span class="v" data-u="total">{v.total}</span> <span class="c">tokens since <span data-u="since">{v.since}</span></span></p>
+    </div>
+    <div class="burn-say">
+      <p class="burn-why">Thomas designs in Figma and builds in code with AI tools every day.</p>
+      <p class="read"><a href="/about#usage-h"><span>How he works with AI</span><Arrow /></a></p>
+    </div>
+    <div class="burn-chart">
+      <div class="sq" aria-hidden="true" data-start={shown[0]}>
+        <div class="cells">{shown.map((d) => <i class:list={{ t: d === v.today }} style={tick(v.claude(d))} />)}</div>
+        <div class="mons">{marks.map((m) => <b class:list={{ early: m.w < WEEKS - PHONE }} style={`--w: ${m.w + 1}; --w2: ${m.w + 1 - (WEEKS - PHONE)}`}>{m.name}</b>)}</div>
+      </div>
+      <p class="sr" data-u="claude">{v.claudeSummary}</p>
+    </div>
+  </div>
+</section>
+
+<script>
+  import { trim, view, add, etDay, STALE } from '../../lib/usage'
+  // As Usage.astro does: past 65 minutes old, ask the gist once and repaint in place. Any failure
+  // keeps the build's numbers.
+  for (const el of document.querySelectorAll<HTMLElement>('[data-burn]')) {
+    const was = Date.parse(el.dataset.generated ?? '')
+    if (!(Date.now() - was > STALE)) continue
+    fetch(`${el.dataset.feed}?t=${Math.floor(Date.now() / 6e4)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((raw) => {
+        const u = trim(raw)
+        if (!u || Date.parse(u.generatedAt) <= was) return
+        const v = view(u, etDay(Date.now()))
+        const set = (k: string, s: string) => { const n = el.querySelector(`[data-u="${k}"]`); if (n) n.textContent = s }
+        set('total', v.total); set('since', v.since); set('claude', v.claudeSummary)
+        el.dataset.generated = u.generatedAt
+        const cal = el.querySelector<HTMLElement>('[data-start]')!
+        // ponytail: the build's 26 weeks; a day past the build's week waits for the next build.
+        cal.querySelectorAll('i').forEach((t, i) => {
+          const d = add(cal.dataset.start!, i), n = v.claude(d)
+          t.style.setProperty('--v', n ? String(n) : '0')
+          t.classList.toggle('t', d === v.today)
+        })
+      })
+      .catch(() => {})
+  }
+</script>
+
+<style>
+  /* One band under a carbon rule: the count, the line and link, the chart, bottoms level. */
+  .burn-band { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); column-gap: var(--g); align-items: end; padding-top: 24px; border-top: 1px solid var(--carbon); }
+  .burn-text { grid-column: 1 / 8; container-type: inline-size; }
+  .burn-say { grid-column: 9 / 16; }
+  .burn-chart { grid-column: 17 / 25; }
+  .burn-h { font: 500 1rem/1.5rem var(--sans); letter-spacing: 0; }
+  /* Ten digits and three commas, 13 characters of Geist Mono: the size comes from the column, and
+     the count sits on its own line, so a new digit can never move anything. */
+  .burn-total { margin-top: 12px; }
+  .burn-total .v { display: block; font: 400 min(3.5rem, 100cqi / 8.4)/1 var(--mono); line-height: round(up, 1em, 4px); letter-spacing: -0.03em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .burn-total .c { display: block; margin-top: 8px; font-size: 0.875rem; line-height: 1.25rem; color: var(--graphite); }
+  .burn-why { max-width: 24em; font-size: 1rem; line-height: 1.5rem; }
+  .burn .read { margin-top: 16px; font-size: 1rem; }
+  @media (max-width: 1279px) {
+    .burn-text { grid-column: 1 / 13; }
+    .burn-say { grid-column: 13 / 25; }
+    .burn-chart { grid-column: 1 / -1; grid-row: 2; margin-top: 32px; }
+  }
+  @media (max-width: 899px) {
+    .burn-band { display: block; }
+    .burn-say { margin-top: 20px; }
+    .burn-chart { margin-top: 28px; }
+  }
+</style>

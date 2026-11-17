@@ -1,0 +1,132 @@
+---
+import { load, view, days, FEED } from '../lib/usage'
+// N16: the Claude Code token count and two day-by-day charts, on About (home has UsageLite). Each
+// chart is the week grid, a column a week, a row a day, every day a solid ink square sized by its
+// count; a day with none is a dot. Reformatted 11 November (Thomas: "more aware of space"): the last
+// 26 weeks at a fixed 8 px square, two charts side by side, facts as ruled label and value pairs.
+// Everything is in the HTML at build; the script below only asks the gist again when the build's
+// copy is stale. The charts are aria-hidden: the facts, a sentence each for screen readers and the
+// month table carry them.
+const u = await load()
+const v = view(u)
+const { start, all, months } = days(v.today)
+// Month by month, newest first. The months before Claude Code was tracked fold into one row (Thomas,
+// 14 November: the list ran too long), their GitHub counts summed.
+const rows = v.months(all)
+const old = rows.filter(([, t]) => t === 'Not tracked')
+const table = old.length < 2 ? rows : [...rows.filter(([, t]) => t !== 'Not tracked'),
+  [`${old.at(-1)![0]} to ${old[0][0]}`, 'Not tracked', old.reduce((n, [, , g]) => n + Number(g.replace(/,/g, '')), 0).toLocaleString('en-US')]]
+// 40 weeks a chart, so it runs wider at the same height (Thomas, 14 November); under 600 px the last 26.
+const WEEKS = 40, PHONE = 26
+const SHOW = WEEKS * 7, from = all.length - SHOW
+const shown = all.slice(from)
+// Week columns 0 to 39; a month begun in the last two weeks has no room for its name, so it waits.
+const marks = months.filter((m) => m.col - 1 >= from).map((m) => ({ name: m.name, w: Math.floor((m.col - 1 - from) / 7) })).filter((m) => m.w < WEEKS - 2)
+const cals = [
+  { key: 'claude', title: 'Claude Code', sum: v.claudeSummary, len: v.claude, facts: [['Days active', v.days, 'days'], ['Busiest day', v.peak, 'peak']] },
+  { key: 'github', title: 'GitHub', sum: v.githubSummary, len: v.github, facts: [['Contributions, last year', v.contributions, 'contributions'], ['Most in one day', v.ghPeak, 'ghPeak']] },
+] as const
+const tick = (n: number | null) => (n ? `--v: ${n}` : undefined)
+---
+<section class="usage" aria-labelledby="usage-h" data-usage data-generated={u.generatedAt} data-feed={FEED} data-year={start}>
+  <h2 id="usage-h">Claude Code token burn</h2>
+  <p class="usage-also">He also works daily with Muse from Meta, Grok, Cursor, Framer Agent, Comet from Perplexity, Claude Duet, Google Gemini, Gemini Notebook, OpenAI Codex and ChatGPT.</p>
+  <div class="usage-body">
+    <p class="usage-total"><span class="v" data-u="total">{v.total}</span> <span class="c">tokens since <span data-u="since">{v.since}</span></span></p>
+    <div class="usage-cals">
+      {cals.map((c) => (
+        <div class="heat">
+          <h3>{c.title}<span class="wks">, last {WEEKS} weeks</span><span class="wks-p">, last {PHONE} weeks</span></h3>
+          <div class="sq" aria-hidden="true" data-cal={c.key} data-start={shown[0]}>
+            <div class="cells">{shown.map((d) => <i class:list={{ t: d === v.today }} style={tick(c.len(d))} />)}</div>
+            <div class="mons">{marks.map((m) => <b class:list={{ early: m.w < WEEKS - PHONE }} style={`--w: ${m.w + 1}; --w2: ${m.w + 1 - (WEEKS - PHONE)}`}>{m.name}</b>)}</div>
+          </div>
+          <dl class="usage-facts">{c.facts.map(([k, val, key]) => <div><dt>{k}</dt><dd data-u={key}>{val}</dd></div>)}</dl>
+          <p class="sr" data-u={c.key}>{c.sum}</p>
+        </div>
+      ))}
+    </div>
+    <div class="usage-foot">
+      <details class="usage-table">
+        <summary>Month by month</summary>
+        <table>
+          <thead><tr><th scope="col">Month</th><th scope="col">Claude Code tokens</th><th scope="col">GitHub contributions</th></tr></thead>
+          <tbody data-u="months">
+            {table.map(([m, t, g]) => <tr><th scope="row">{m}</th><td>{t}</td><td>{g}</td></tr>)}
+          </tbody>
+        </table>
+      </details>
+      <p class="label usage-at"><time datetime={u.generatedAt} data-u="updated">{v.updated}</time></p>
+    </div>
+  </div>
+</section>
+
+<style>
+  /* At 1440 the panel runs about a third of its old height (1062 to under 400 px, measured): the list
+     of tools moves under the heading, where the column stood empty, and the charts sit side by side. */
+  .usage > .usage-also { grid-column: 1 / 7; grid-row: 2; margin-top: 16px; }
+  .usage > .usage-body { grid-row: 1 / span 2; }
+  /* Row 1 holds only the heading; the open table's height all goes to row 2, so the list stays put. */
+  @media (min-width: 900px) { .usage { grid-template-rows: auto 1fr; } .usage > .usage-also { align-self: start; } }
+  .usage-cals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px var(--g); margin-top: 24px; }
+  /* Each chart runs the width of its column; its two facts sit under it, side by side and only as wide
+     as they need (Thomas, 14 November: they were wider than their content). */
+  .heat { display: block; }
+  .heat .wks-p { display: none; } /* not .wk: site.css owns that name */
+  .heat h3 { margin: 0; font: 500 1rem/1.5rem var(--sans); letter-spacing: 0; }
+  .heat h3 span { font-weight: 400; color: var(--graphite); }
+  .heat .sq { margin-top: 12px; }
+  .usage-facts { display: flex; flex-wrap: wrap; gap: 4px 24px; margin: 12px 0 0; }
+  .usage-facts > div { padding-top: 4px; border-top: 1px solid var(--carbon); }
+  .usage-facts dt { font-size: 0.875rem; line-height: 1.25rem; color: var(--graphite); }
+  .usage-facts dd { margin: 0; font: 400 0.875rem/1.25rem var(--mono); font-variant-numeric: tabular-nums; }
+  .usage-foot { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; column-gap: 24px; margin-top: 16px; }
+  .usage-foot .usage-at { margin: 0; }
+  @media (max-width: 1023px) { .usage-cals { grid-template-columns: minmax(0, 1fr); } }
+  @media (max-width: 599px) {
+    .heat .wks { display: none; }
+    .heat .wks-p { display: inline; }
+    .usage-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; }
+  }
+  @media (max-width: 899px) {
+    .usage > .usage-also, .usage > .usage-body { grid-row: auto; }
+    .usage > .usage-also { margin: 0 0 24px; }
+  }
+</style>
+
+<script>
+  import { trim, view, add, etDay, STALE } from '../lib/usage'
+  // Over 65 minutes old: fetch the gist once and repaint in place. Any failure keeps the build's numbers.
+  for (const el of document.querySelectorAll<HTMLElement>('[data-usage]')) {
+    const was = Date.parse(el.dataset.generated ?? '')
+    if (!(Date.now() - was > STALE)) continue
+    fetch(`${el.dataset.feed}?t=${Math.floor(Date.now() / 6e4)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((raw) => {
+        const u = trim(raw)
+        if (!u || Date.parse(u.generatedAt) <= was) return
+        const v = view(u, etDay(Date.now()))
+        const set = (k: string, s: string) => { const n = el.querySelector(`[data-u="${k}"]`); if (n) n.textContent = s }
+        set('total', v.total); set('since', v.since); set('claude', v.claudeSummary); set('github', v.githubSummary); set('updated', v.updated)
+        set('days', v.days); set('peak', v.peak); set('contributions', v.contributions); set('ghPeak', v.ghPeak)
+        el.querySelector('time')?.setAttribute('datetime', u.generatedAt)
+        el.dataset.generated = u.generatedAt
+        for (const cal of el.querySelectorAll<HTMLElement>('[data-cal]')) {
+          const len = cal.dataset.cal === 'github' ? v.github : v.claude
+          // ponytail: squares cover the build's 26 weeks; a day past the build's week waits for the next build.
+          cal.querySelectorAll('i').forEach((t, i) => {
+            const d = add(cal.dataset.start!, i), n = len(d)
+            t.style.setProperty('--v', n ? String(n) : '0')
+            t.classList.toggle('t', d === v.today)
+          })
+        }
+        // The month table: the build's year of months, so only the counts change.
+        const rows = v.months(Array.from({ length: 53 * 7 }, (_, i) => add(el.dataset.year!, i)))
+        el.querySelectorAll('[data-u="months"] tr').forEach((tr, i) => {
+          const r = rows[i]
+          if (r && tr.firstElementChild?.textContent === r[0]) tr.querySelectorAll('td').forEach((td, j) => (td.textContent = r[j + 1]))
+        })
+      })
+      .catch(() => {})
+  }
+</script>

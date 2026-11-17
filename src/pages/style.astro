@@ -1,0 +1,753 @@
+---
+import Base from '../layouts/Base.astro'
+import { CURVE, TOKEN, MOMENTS } from '../data/motion'
+import Ending from '../components/Ending.astro'
+import Arrow from '../components/Arrow.astro'
+import Contents from '../components/Contents.astro'
+import horizontalSvg from '../assets/takd-logo.svg?raw'
+import fullSvg from '../assets/takd-mark.svg?raw'
+import monoSvg from '../assets/takd-monogram.svg?raw'
+import glassCss from '../styles/glass.css?raw'
+import usage from '../data/usage.json'
+import { token, contrast, grade, ratio, oklch, rgbText, rule, css } from '../components/style/color'
+import { readFont } from '../components/style/font'
+import liquidSrc from '../components/Liquid.astro?raw'
+
+// Style guide. Every figure on this page is read at build time: colors and type from site.css,
+// glass from glass.css and Liquid.astro, metrics from the font files in public/fonts, motion from
+// data/motion.ts. Contrast is WCAG 2, computed here.
+const inner = (svg: string) => {
+  const box = svg.match(/viewBox="([^"]+)"/)![1]
+  const body = svg.replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '').replace(/<defs>[\s\S]*?<\/defs>/g, '')
+    // set:html prints this raw, so nothing that runs gets through: no script, no on* handlers.
+    .replace(/<script[\s\S]*?<\/script\s*>/gi, '').replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, '').replace(/\s(?:class|id|data-name|fill)="[^"]*"/g, '').replace(/\s+/g, ' ').trim()
+  const [, , w, h] = box.split(/\s+/).map(Number)
+  return { box, body, ratio: w / h }
+}
+// Logo rules and smallest sizes: brand/style-page-copy.md (14 October).
+const LOGOS = [
+  { id: 'horizontal', name: 'Horizontal', ...inner(horizontalSvg), min: 16, use: 'The site header, signatures, any space wider than it is tall.' },
+  { id: 'full', name: 'Full mark', ...inner(fullSvg), min: 48, use: 'Covers, the About page and print.' },
+  { id: 'mono', name: 'Monogram', ...inner(monoSvg), min: 32, use: 'Square spaces: avatars, the favicon, stamps.' },
+]
+const clear = LOGOS[0]
+
+// ---- Color -------------------------------------------------------------------------------------
+const uses = (n: string) => ((css + glassCss).match(new RegExp(`var\\(--${n}\\)`, 'g')) ?? []).length
+const C = (id: string, name: string, kind: 'ground' | 'ink' | 'marker', role: string) => {
+  const hex = token(id).toUpperCase()
+  return { id, name, kind, role, hex, rgb: rgbText(hex), lch: oklch(hex).text, L: oklch(hex).L, C: oklch(hex).C, uses: uses(id) }
+}
+const PAL = [
+  C('field', 'Field', 'ground', 'The ground of every page.'),
+  C('mat', 'Mat', 'ground', 'The second ground: image frames, logo cells, the footer.'),
+  C('carbon', 'Carbon', 'ink', 'Text, rules and marks.'),
+  C('graphite', 'Graphite', 'ink', 'Captions, labels and secondary text.'),
+  C('pewter', 'Pewter', 'ink', 'Large type set back, and controls that do nothing.'),
+  C('signal', 'Signal', 'marker', 'The point and anchor points. Never text, never a fill.'),
+]
+const P = Object.fromEntries(PAL.map((c) => [c.id, c]))
+const GROUNDS = [P.field, P.mat]
+const INKS = [P.carbon, P.graphite, P.pewter, P.signal]
+const pair = (fg: string, bg: string) => { const r = contrast(fg, bg); return { r, t: ratio(r), g: grade(r) } }
+
+// ---- Type --------------------------------------------------------------------------------------
+// Credits checked 11 November 2026: Endless on its Behance page (and its own copyright line), the Geist
+// family on vercel.com/font and in github.com/vercel/geist-font, whose OFL names no Reserved Font Name.
+const GEIST = 'https://vercel.com/font', OFL = 'SIL Open Font License 1.1'
+const FACES = [
+  { v: 'display', name: 'Endless', file: 'Endless-Regular.woff2', job: 'Titles, names and section heads.', word: 'Hdpx',
+    by: 'Designed by Sreejith Shashi.', lic: 'Free for personal and commercial use.', src: 'https://www.behance.net/gallery/247864363/ENDLESS-Geometric-Sans-Serif-Free-Font', at: 'Behance' },
+  { v: 'sans', name: 'Geist', file: 'Geist-Regular.woff2', job: 'Body text, labels and controls.', word: 'Hdpx',
+    by: 'By Vercel.', lic: `${OFL}.`, src: GEIST, at: 'Vercel' },
+  { v: 'serif', name: 'Geist Serif, Square cut', file: 'GeistSerif-Square.woff2', job: 'Ledes and case text. The full stop is a square.', word: 'Hdpx.',
+    by: 'By Vercel. Square is one of its published styles, used as released.', lic: `${OFL}.`, src: GEIST, at: 'Vercel' },
+  { v: 'mono', name: 'Geist Mono', file: 'GeistMono-Mini.woff2', job: 'Figures and fact keys.', word: 'Fig.',
+    by: 'By Vercel.', lic: `${OFL}.`, src: GEIST, at: 'Vercel' },
+].map((f) => ({ ...f, m: readFont(f.file) }))
+// A font's metric lines in font units, top to bottom.
+const lines = (m: (typeof FACES)[0]['m']) => [
+  ['Ascender', m.ascender], ['Cap height', m.capHeight], ['x-height', m.xHeight], ['Baseline', 0], ['Descender', m.descender],
+] as [string, number][]
+// One frame for all four specimens: the tallest ascender and the deepest descender. Same width, same
+// frame, so every face stands on one baseline across a row (Thomas, 11 November).
+const TOP = Math.max(...FACES.map((f) => f.m.ascender)) + 120, SPEC_H = TOP - Math.min(...FACES.map((f) => f.m.descender)) + 60
+
+// Splits a font shorthand at the slash that is not inside parentheses.
+const split = (s: string) => { let d = 0; for (let i = 0; i < s.length; i++) { const c = s[i]; if (c === '(') d++; else if (c === ')') d--; else if (c === '/' && !d) return [s.slice(0, i), s.slice(i + 1)] } return [s, ''] }
+const rem = (s: string) => {
+  const c = s.match(/clamp\(([\d.]+)rem,\s*[\d.]+vw,\s*([\d.]+)rem\)/)
+  if (c) return { rem: `${+c[1]} to ${+c[2]}`, px: `${+c[1] * 16} to ${+c[2] * 16}`, min: +c[1] * 16 }
+  const r = s.match(/^([\d.]+)rem$/)
+  return r ? { rem: `${+r[1]}`, px: `${+r[1] * 16}`, min: +r[1] * 16 } : { rem: s, px: '', min: 0 }
+}
+const leading = (lh: string) => {
+  const r = lh.match(/round\(up, ([\d.]+)em, (\d+)px\)/)
+  if (r) return `${r[1]} em, up to ${r[2]} px steps`
+  const m = lh.match(/^([\d.]+)rem$/)
+  return m ? `${+m[1] * 16} px` : `${lh} em`
+}
+const ROLES: [sel: string, role: string, where: string, text: string][] = [
+  ['.title', 'Page title', 'Every page head', 'Healthy Campus Week'],
+  ['.kh', 'Group head', '/projects, /one-offs', 'Brand identities'],
+  ['.figures .v', 'Figure', 'Case figures', '2,400'],
+  ['.prose section > h2', 'Section head', 'Terms, this guide', 'Grid and space'],
+  ['.case .claim', 'Claim', 'Case pages', 'One friendly identity for five days of campus wellness.'],
+  ['.lede', 'Lede', 'About, case pages', 'Thomas art directed Healthy Campus Week 2023 for University Recreation at UNC Charlotte.'],
+  ['body', 'Body', 'Running text', 'He drew the icons by hand and set five themed days across digital signage, Instagram stories, email and a web banner.'],
+  ['.plate figcaption', 'Caption', 'Case plates', 'Landing page'],
+  ['.note', 'Note', 'Fine print, labels', 'Concept, no client.'],
+  ['.num', 'Index figure', 'Section numbers, counts', '04'],
+  ['.chips span', 'Sheet label', 'Brand case sheets', '#FFF7E1'],
+]
+const SCALE = ROLES.map(([sel, role, where, text]) => {
+  const d = rule(sel)
+  let size = d['font-size'] ?? '', lh = d['line-height'] ?? '', fam = d['font-family'] ?? 'var(--sans)'
+  if (d.font) {
+    const m = d.font.match(/^(\d+)\s+(.*)\s+(var\(--\w+\))$/)!
+    const [s, l] = split(m[2]); size = s; lh = d['line-height'] ?? l; fam = m[3]
+  }
+  if (sel === 'body') lh = '1.556'
+  const r = rem(size)
+  const face = FACES.find((f) => fam.includes(f.v))!
+  const style = `font-family:${fam};font-size:${size};line-height:${lh};${d['letter-spacing'] ? `letter-spacing:${d['letter-spacing']};` : ''}${d['font-variant-numeric'] ? 'font-variant-numeric:tabular-nums;' : ''}`
+  return { sel, role, where, text, face: face.name.split(',')[0], ...r, lead: leading(lh), style, small: r.min < 14 }
+})
+
+// ---- Grid and space ----------------------------------------------------------------------------
+const base = { m: parseInt(token('m')), g: parseInt(token('g')) }
+const steps = [...css.matchAll(/@media \((min|max)-width: (\d+)px\) \{ :root \{ ([^}]*)\} \}/g)].map(([, k, w, body]) => ({
+  k, w: +w, m: body.match(/--m: (\d+)px/)?.[1], g: body.match(/--g: (\d+)px/)?.[1],
+}))
+const bp = [599, 899, 1279].map((w) => steps.find((s) => s.k === 'max' && s.w === w)!)
+const wide = steps.find((s) => s.k === 'min')!
+const GRID = [
+  ['0 to 599', +bp[0].m!, base.g], ['600 to 899', +bp[1].m!, base.g], ['900 to 1279', +bp[2].m!, base.g],
+  [`1280 to ${wide.w - 1}`, base.m, base.g], [`${wide.w} and up`, +wide.m!, +wide.g!],
+] as [string, number, number][]
+// The row for the reader's own window: one media rule per row, from the same breakpoints.
+const cut = [0, ...bp.map((b) => b.w + 1), wide.w]
+const HERE = cut.map((lo, i) => `@media (min-width: ${lo}px)${cut[i + 1] ? ` and (max-width: ${cut[i + 1] - 1}px)` : ''} { .gw${i} td { color: var(--carbon); font-weight: 500; } .gw${i} td:first-child::after { content: ''; display: inline-block; width: 6px; height: 6px; margin: 0 0 1px 8px; background: var(--signal); } }`).join('\n')
+const sec = [...css.matchAll(/\.sec \{ padding-block: (\d+)px 0; \}/g)].map((m) => +m[1]) // 160, then 96 under 900 px
+const SPACE = (glassCss.match(/spacing steps are ([\d, ]+)/)![1].split(',').map((s) => +s.trim())).map((v) => [v, `${v / 4} x 4`] as [number, string])
+
+// ---- Glass controls -----------------------------------------------------------------------------
+// Every number is read from the code that runs it: the springs in Liquid.astro, the fills, tints and
+// preferences in glass.css, the focus ring in site.css. The build stops if a line it reads changes shape.
+const grab = (src: string, re: RegExp, where: string) => {
+  const m = src.match(re)
+  if (!m) throw new Error(`style.astro: ${re} no longer matches ${where}`)
+  return m.slice(1).map(Number)
+}
+const LQ = 'components/Liquid.astro', GC = 'styles/glass.css'
+const [resp, damp] = grab(liquidSrc, /constructor\(x: number, eps = [\d.]+, response = ([\d.]+), damping = ([\d.]+)\)/, LQ)
+const [peak] = grab(liquidSrc, /function button\(el: HTMLElement, peak = ([\d.]+)\)/, LQ)
+const [bandX, bandY] = grab(liquidSrc, /ox\.to = band\(e\.clientX - x0, (\d+)\); oy\.to = band\(e\.clientY - y0, (\d+)\)/, LQ)
+const [thR, thD] = grab(liquidSrc, /new Spring\(at\(\+range\.value\), [\d.]+, ([\d.]+), ([\d.]+)\)/, LQ)
+const [rest] = grab(liquidSrc, /REST = ([\d.]+)/, LQ)
+const [selR, selD] = grab(liquidSrc, /const x = new Spring\(B\.cx, [\d.]+, ([\d.]+), ([\d.]+)\)/, LQ)
+const [selPeak] = grab(liquidSrc, /x0 = px = e\.clientX; py = e\.clientY; s\.to = ([\d.]+)/, LQ)
+grab(liquidSrc, /if \(reduce\) return this\.snap\(\)/, LQ) // the reduced-motion rule below
+const [fill, fill2] = grab(glassCss, /--gl-fill: color-mix\(in srgb, var\(--carbon\) (\d+)%[^\n]*\n\s*--gl-fill-2: color-mix\(in srgb, var\(--carbon\) (\d+)%/, GC)
+const [fade] = grab(glassCss, /\.button, \.v-press, \.v-nav button:not\(\.v-press\) \{[^}]*transition: background-color (\d+)ms/, GC)
+const [minH, padX] = grab(glassCss, /\.button, \.v-press \{[^}]*min-height: (\d+)px; padding: 0 (\d+)px/, GC)
+const [capPad] = grab(glassCss, /\.seg \{[^}]*padding: (\d+)px; border-radius: 999px/, GC)
+const [tint, tintLive] = grab(glassCss, /--gl-tint: (\d+)%;[\s\S]*?html\.gl-live \{ --gl-tint: (\d+)%/, GC)
+const [tintMenu] = grab(glassCss, /\.bar \.sub \{[^}]*--gl-tint: (\d+)%/, GC)
+const [tintToc] = grab(glassCss, /\.toc \{ --gl-tint: (\d+)%/, GC)
+const [rtTint] = grab(glassCss, /prefers-reduced-transparency: reduce\) \{\s*:root, html\.gl-live \{ --gl-tint: (\d+)%; --gl-blur: 0px/, GC)
+const [hcTint, hcRing] = grab(glassCss, /prefers-contrast: more\) \{\s*:root, html\.gl-live \{ --gl-tint: (\d+)%; --gl-shadow: 0 0 0 (\d+)px var\(--carbon\)/, GC)
+const [ringW, ringO] = grab(css, /\n:focus-visible \{ outline: (\d+)px solid var\(--carbon\); outline-offset: (\d+)px; \}/, 'styles/site.css')
+const pc = (v: number) => `${Math.round(v * 100)}%`
+const NUMS: [string, string, string][] = [
+  ['Press', `Swells to ${pc(peak)} on a spring: response ${resp} s, damping ${damp}, one small overshoot`, 'Liquid.astro, button() and Spring'],
+  ['Drag', `Follows the finger, then less, up to ${bandX} px sideways and ${bandY} px up or down, and stretches that way`, 'Liquid.astro, button()'],
+  ['Selection', `Slides on response ${selR} s, damping ${selD}; held, it swells to ${pc(selPeak)}`, 'Liquid.astro, filters()'],
+  ['Slider thumb', `Rests at ${pc(rest)} as a white pill; held, it swells to 100% as a lens; response ${thR} s, damping ${thD}`, 'Liquid.astro, slider()'],
+  ['Fill', `Changes in ${fade} ms on the site’s curve`, 'glass.css, .button'],
+]
+const STATES: [string, string, string][] = [
+  ['Rest', '', `Carbon at ${fill}%: a control on paper.`],
+  ['Hover', 'st-hover', `Carbon at ${fill2}%. Only where a pointer hovers.`],
+  ['Pressed', 'st-press lq', `${pc(peak)} on the spring, the light under the finger.`],
+  ['Selected', 'st-on', `Carbon at ${fill2}%, held while it is on.`],
+  ['Focus', 'st-focus', `A ${ringW} px Carbon ring, ${ringO} px out. Keys only.`],
+]
+
+// ---- Marks ----------------------------------------------------------------------------------------
+const point = rule('.point')
+// Eight weeks of the home page's activity chart: one square a day, its side the square root of the day's share of the busiest.
+const days = Object.entries(usage.claude as Record<string, [number, number]>).slice(-56)
+const busiest = Math.max(...days.map(([, v]) => v[1]))
+const SQ = days.map(([d, v]) => ({ d, v: Math.sqrt(v[1] / busiest) }))
+
+// ---- Motion -------------------------------------------------------------------------------------
+const [x1, y1, x2, y2] = CURVE.match(/[\d.]+/g)!.map(Number)
+const S = 240, P1 = [x1 * S, (1 - y1) * S], P2 = [x2 * S, (1 - y2) * S]
+const curveName = (c: string) => (c === CURVE ? 'The curve' : c === 'spring' ? 'Spring' : c === 'linear' ? 'Linear' : c)
+
+const SECTIONS: [string, string][] = [['logo-h', 'Logo'], ['color-h', 'Color'], ['type-h', 'Type'], ['grid-h', 'Grid'], ['ctl-h', 'Glass controls'], ['marks-h', 'Marks'], ['motion-h', 'Motion'], ['voice-h', 'Voice']]
+---
+<Base
+  title="Style guide | TAKramer Designs"
+  description="The logo, color, type, grid, glass controls, marks, motion and voice rules behind takramerdesigns.com, by Thomas Kramer, with every value read from the site's own code."
+  page="style"
+  ask={false}
+>
+  <div class="w sgw">
+    <header class="page-head">
+      <h1 class="title"><span class="t"><Ending text="Style guide" /></span></h1>
+      <p class="intro-line">Every value on this sheet is read from the site’s stylesheet, font files and motion data when the site is built.</p>
+    </header>
+    <Contents items={SECTIONS} />
+
+    <!-- 01 Logo -------------------------------------------------------------------------------- -->
+    <section class="sg" aria-labelledby="logo-h">
+      <header class="sg-h"><span class="sn">01</span><h2 id="logo-h">Logo</h2>
+        <p>Three logos share one set of initials. The four tool icons belong to the full mark and never stand alone.</p></header>
+      <table class="logos">
+        <thead><tr><th scope="col">Mark</th><th scope="col">Carbon on Mat</th><th scope="col">Field on Carbon</th><th scope="col">Smallest</th></tr></thead>
+        <tbody>
+          {LOGOS.map((l) => (
+            <tr class={l.id}>
+              <th scope="row"><span class="ln">{l.name}</span><span class="an">{l.use}</span></th>
+              <td><div class="cell on-mat"><svg viewBox={l.box} fill="currentColor" role="img" aria-label={`${l.name}, Carbon on Mat`} set:html={l.body} /></div></td>
+              <td><div class="cell on-carbon"><svg viewBox={l.box} fill="currentColor" role="img" aria-label={`${l.name}, Field on Carbon`} set:html={l.body} /></div></td>
+              <td class="minc"><span class="at-min"><svg viewBox={l.box} fill="currentColor" aria-hidden="true" style={`height:${l.min}px;width:${(l.min * l.ratio).toFixed(1)}px`} set:html={l.body} /><i class="dim" style={`height:${l.min}px`}></i></span><span class="an">{l.min} px tall</span></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div class="g24 rules">
+        <figure class="clear">
+          <div class="clear-art" style={`--r:${clear.ratio}`}>
+            <span class="zone" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+            <svg viewBox={clear.box} fill="currentColor" role="img" aria-label="The horizontal logo inside its clear space" set:html={clear.body} />
+          </div>
+          <figcaption><span class="fn"></span>Clear space on every side is half the height of one letter. Nothing else enters the dashed line.</figcaption>
+        </figure>
+        <ol class="ruled dont">
+          <li>Carbon on Field or Mat, or Field on Carbon. No other pairing.</li>
+          <li>Never Signal, never a gradient, never an outline.</li>
+          <li>Never stretch, rotate or redraw the letters. Scale the file as it is.</li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- 02 Color ------------------------------------------------------------------------------- -->
+    <section class="sg" aria-labelledby="color-h">
+      <header class="sg-h"><span class="sn">02</span><h2 id="color-h">Color</h2>
+        <p>Two grounds, three inks and one marker. Project images keep their own colors; the frame around them stays neutral. Body text is 7:1 or better on both grounds.</p></header>
+
+      <!-- Every ink on both grounds as set text, with its computed ratio. -->
+      <div>
+        <div class="matrix">
+          <span class="mx-k" aria-hidden="true"></span>
+          {GROUNDS.map((g) => <div class="mx-h"><span class="sw" style={`background:${g.hex}`}></span><span class="cn">{g.name}</span><span class="an">{g.hex}, RGB {g.rgb}<br />OKLCH {g.lch}</span><span class="an">{g.role}</span></div>)}
+          {INKS.map((ink) => (
+            <>
+              <div class="mx-r"><span class="cn">{ink.name}</span><span class="an">{ink.hex}<br />RGB {ink.rgb}<br />OKLCH {ink.lch}</span><span class="an mx-role">{ink.role}</span><span class="an">{ink.uses} uses in the stylesheets</span></div>
+              {GROUNDS.map((g) => { const p = pair(ink.hex, g.hex); return (
+                <div class="mx-c" style={`background:${g.hex}`}>
+                  {ink.kind === 'marker'
+                    ? <p class="mx-t"><span class="pt-demo" aria-hidden="true">Work<span class="point"></span></span><span class="an mx-note">Marks only. As text it would fail.</span></p>
+                    : <p class="mx-t" style={`color:${ink.hex}`}>Thomas Kramer is a brand and product designer who builds what he designs.</p>}
+                  <p class="mx-v"><span class="r">{p.t}</span> <span class="gr">{p.g}</span></p>
+                </div>
+              ) })}
+            </>
+          ))}
+        </div>
+      </div>
+
+    </section>
+
+    <!-- 03 Type -------------------------------------------------------------------------------- -->
+    <section class="sg" aria-labelledby="type-h">
+      <header class="sg-h"><span class="sn">03</span><h2 id="type-h">Type</h2>
+        <p>Four faces, one job each. Every size is in rem on a 16 px root, so the reader’s own text size scales it. Body text is 18 on 28 px.</p></header>
+
+      <!-- One spread per face; the hairlines are the font file's own metrics. -->
+      <div>
+        <div class="faces">
+          {FACES.map((f) => { const top = TOP, h = SPEC_H; return (
+            <figure class="face">
+              <div class="spec" style={`aspect-ratio: 3400 / ${h}`}>
+                <svg viewBox={`0 ${-top} 3400 ${h}`} aria-hidden="true" preserveAspectRatio="xMinYMin meet">
+                  {lines(f.m).map(([, y]) => <line x1="0" x2="3400" y1={-y} y2={-y} class:list={{ bl: y === 0 }} />)}
+                  <text x="40" y="0" style={`font-family: var(--${f.v}); font-size: 1000px`}>{f.word}</text>
+                </svg>
+                {lines(f.m).map(([n, y]) => <span class="ml an" style={`top:${((top - y) / h) * 100}%`}>{n} {y}</span>)}
+              </div>
+              <figcaption><span class="fn"></span><span class="cn">{f.name}</span><span class="fj">{f.job}</span><span class="an">{f.v === 'mono' ? `Units of ${f.m.upm} per em.` : `${f.m.chars.length} characters; units of ${f.m.upm} per em.`}</span><span class="an credit">{f.by} {f.lic} <a href={f.src} target="_blank" rel="noopener">Get it from {f.at}<Arrow out /><span class="sr"> (opens in a new tab)</span></a></span></figcaption>
+            </figure>
+          ) })}
+        </div>
+      </div>
+
+      <!-- The scale, every role in its stylesheet declaration, largest first. -->
+      <div class="alt">
+        <ol class="scale">
+          {SCALE.map((s) => (
+            <li class:list={{ small: s.small }}>
+              <p class="sc-k"><span class="cn">{s.role}</span><span class="an">{s.face} {s.rem} rem, {s.px} px</span><span class="an">Leading {s.lead}</span><span class="an">{s.where}</span>{s.small && <span class="an flag">Below the 14 px floor</span>}</p>
+              <p class="sc-t" style={s.style}>{s.text}</p>
+            </li>
+          ))}
+        </ol>
+      </div>
+
+    </section>
+
+    <!-- 04 Grid and space ---------------------------------------------------------------------- -->
+    <section class="sg" aria-labelledby="grid-h">
+      <header class="sg-h"><span class="sn">04</span><h2 id="grid-h">Grid and space</h2>
+        <p>Twenty-four columns. The margin steps with the window; under 600 px every part spans the full width.</p></header>
+      <div class="cols" aria-hidden="true">{Array.from({ length: 24 }, (_, i) => <span><b>{i + 1}</b></span>)}</div>
+      <div class="g24 gs">
+        <figure class="gt">
+          <table class="mini">
+            <thead><tr><th scope="col">Window, px</th><th scope="col">Margin</th><th scope="col">Gutter</th></tr></thead>
+            <tbody>{GRID.map(([w, m, g], i) => <tr class={`gw gw${i}`}><td>{w}</td><td>{m} px</td><td>{g} px</td></tr>)}</tbody>
+          </table>
+          <figcaption><span class="fn"></span>The columns above are this page’s own grid at this width, and the marked row is this window.</figcaption>
+          <style is:inline set:html={HERE} />
+        </figure>
+        <figure class="sp">
+          <ol class="bars">
+            {SPACE.map(([v, k]) => <li><span class="bar-v" style={`width:${v}px`}></span><span class="an">{v} px</span></li>)}
+            {sec.map((v, i) => [v, i ? 'section gap under 900 px' : 'section gap'] as const).sort((a, b) => a[0] - b[0]).map(([v, l]) => <li><span class="bar-v" style={`width:${v}px`}></span><span class="an">{v} px, {l}</span></li>)}
+          </ol>
+          <figcaption><span class="fn"></span>Space comes in steps of 4 px. Sections stand {sec[0]} px apart, {sec[1]} px on a phone. Bars at full size.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- 05 Glass controls ----------------------------------------------------------------------- -->
+    <section class="sg" aria-labelledby="ctl-h">
+      <header class="sg-h"><span class="sn">05</span><h2 id="ctl-h">Glass controls</h2>
+        <p>Glass is for controls; content is never glass. These are live, and beside each is what it is for.</p></header>
+      <div class="ctl">
+        <div class="c-item">
+          <div class="c-live"><button class="button sg-grid" type="button" aria-pressed="false">Show the baseline grid</button></div>
+          <p><span class="cn">Button</span> An action that happens now. This one draws a 4 px grid behind the type scale. Press it and it swells; drag and it leans after the finger.</p>
+        </div>
+        <div class="c-item">
+          <div class="c-live">
+            <div class="seg"><div class="filters" role="group" aria-label="Show colors" data-demo>
+              {[['all', 'All'], ['ground', 'Grounds'], ['ink', 'Inks'], ['marker', 'Marker']].map(([f, l]) => <button type="button" data-f={f} data-msg={`Showing ${l.toLowerCase()}`} aria-pressed={String(f === 'all')}><span>{l}</span></button>)}
+            </div></div>
+            <ul class="chips-demo">{PAL.map((c) => <li data-k={c.kind} data-vt={`sg-${c.id}`}><span class="kc" style={`background:${c.hex}`}></span>{c.name}</li>)}</ul>
+            <p class="sr" data-filter-status aria-live="polite"></p>
+          </div>
+          <p><span class="cn">Segmented filter</span> Choices that act on one thing, in one capsule. The selection slides between them, magnifies the labels it passes and can be dragged. Used on /projects and /one-offs.</p>
+        </div>
+        <div class="c-item">
+          <div class="c-live">
+            <label class="rs-b sg-rs"><span class="an">Sample size</span><span class="rs-in"><span class="rs-track" aria-hidden="true"><i></i></span><input type="range" min="100" max="200" step="5" value="100" /></span><output>100%</output></label>
+            <p class="rs-sample" aria-hidden="true">Aa</p>
+          </div>
+          <p><span class="cn">Slider</span> A value along a range. The white thumb turns to a lens while held. About uses it for reading size; case pages use it to scrub a mark’s build.</p>
+        </div>
+        <div class="c-item">
+          <div class="c-live"><div class="toc sg-cap" role="group" aria-label="Example nav capsule"><ol>{['Color', 'Type', 'Motion'].map((l, i) => <li><button type="button" aria-current={i ? undefined : 'true'}>{l}</button></li>)}</ol></div></div>
+          <p><span class="cn">Nav capsule</span> Links that float over the page: the bar and the Contents above. The current link takes the darker fill. This one goes nowhere.</p>
+        </div>
+        <div class="c-item">
+          <div class="c-live more"><p class="read"><a href="#marks-h"><span>Marks</span><Arrow /></a></p></div>
+          <p><span class="cn">Text link</span> Every onward step but one: a standing 1 px rule and an arrow. It is not glass, and it sits beside a glass button, never under it. This one goes nowhere.</p>
+        </div>
+      </div>
+
+      <!-- One button forced into each state: classes, not screenshots. -->
+      <ul class="states" aria-label="The button in each state">
+        {STATES.map(([n, k, note]) => (
+          <li><span class:list={['button', 'st', k]} aria-pressed={k === 'st-on' ? 'true' : undefined} style={k.startsWith('st-press') ? `transform: scale(${peak}); --lq-p: 1` : k === 'st-focus' ? `outline: ${ringW}px solid var(--carbon); outline-offset: ${ringO}px` : undefined} aria-hidden="true">Reset</span><span class="cn">{n}</span><span class="an">{note}</span></li>
+        ))}
+      </ul>
+
+      <div class="g24 gc">
+        <ol class="ruled gc-rules">
+          <li>Glass goes on controls only: the bar, menus, filters, sliders and buttons. Content frames stay square and flat.</li>
+          <li>A glass button does something now: download the resume, open a product, play, reset.</li>
+          <li>A section takes at most one glass button for an onward step. Every other onward link is a text link.</li>
+          <li>Never two glass buttons side by side as equals: the second choice sits beside it as a text link.</li>
+          <li>Surfaces bend the live page under them, in Chromium. Lenses, on the slider thumb and the selection, magnify a copy, in every browser.</li>
+          <li>Every control is {minH} px tall or more under a finger. Capsules take a 999 px radius; a shape inside one takes its radius less the padding.</li>
+          <li>Buttons pad {padX} px each side; a capsule holds its parts with {capPad} px.</li>
+          <li>A label on glass reads at 7:1 or better over whatever can pass behind it. The glass keeps {tint}% of the ground ({tintLive}% where the rim refracts); menus and Contents, which hold rows of text, keep {tintMenu} to {tintToc}%.</li>
+          <li>Under reduced motion every spring lands at once.</li>
+          <li>Under reduced transparency the blur goes and the glass keeps {rtTint}% of the ground. Under higher contrast it keeps {hcTint}%, and a {hcRing} px Carbon ring takes the shadow’s place.</li>
+        </ol>
+        <figure class="gc-num">
+          <table class="mini">
+            <thead><tr><th scope="col">Moment</th><th scope="col">Value</th></tr></thead>
+            <tbody>{NUMS.map(([m, v, src]) => <tr><th scope="row">{m}</th><td>{v}<span class="an src">{src}</span></td></tr>)}</tbody>
+          </table>
+          <figcaption><span class="fn"></span>Read from the scripts and stylesheet when the site is built.</figcaption>
+        </figure>
+      </div>
+      <p class="an gc-credit">Lenses: <a href="https://github.com/eamonliu/liquid-glass-js" target="_blank" rel="noopener">liquid-glass-js<Arrow out /><span class="sr"> (opens in a new tab)</span></a> by Eamon Liu, MIT. Refraction after <a href="https://kube.io/blog/liquid-glass-css-svg/" target="_blank" rel="noopener">kube.io’s published method<Arrow out /><span class="sr"> (opens in a new tab)</span></a>. The controls and their touch physics are published as <a href="https://github.com/Takramer/glass-controls" target="_blank" rel="noopener">glass-controls<Arrow out /><span class="sr"> (opens in a new tab)</span></a>.</p>
+    </section>
+
+    <!-- 06 Marks -------------------------------------------------------------------------------- -->
+    <section class="sg" aria-labelledby="marks-h">
+      <header class="sg-h"><span class="sn">06</span><h2 id="marks-h">Marks</h2>
+        <p>Three marks recur across the site: the point, the arrows and the data squares.</p></header>
+      <div class="g24 marks">
+        <figure class="m-pt">
+          <div class="pt-row" aria-hidden="true"><p class="pt-big">guide<span class="point"></span></p><span class="pt-zoom" style={`--w:${parseFloat(point.width)}`}><i></i><b class="an">{point.width.replace('em', ' em')}</b></span></div>
+          <figcaption><span class="fn"></span>The point stands in for a title’s full stop: a Signal square {point.width.replace('em', ' em')} wide, {point['margin-left'].replace('em', ' em')} from the letter. It never starts a line. Set at 6 rem, a title’s largest size; the square at right is the point at 400%.</figcaption>
+        </figure>
+        <figure class="m-ar">
+          <ul class="arrows">
+            <li><Arrow /><span class="an">Mail, next</span></li>
+            <li><Arrow out /><span class="an">Leaves the site</span></li>
+            <li><Arrow down /><span class="an">Downloads a file</span></li>
+            <li><Arrow back /><span class="an">Back up to a list</span></li>
+          </ul>
+          <figcaption><span class="fn"></span>Four arrows on one stroke. Each names where the link goes.</figcaption>
+        </figure>
+        <figure class="m-sq">
+          <div class="sq" aria-hidden="true"><div class="cells">{SQ.map((d, i) => <i class:list={{ t: i === SQ.length - 1 }} style={d.v ? `--v: ${d.v.toFixed(3)}` : undefined} />)}</div></div>
+          <figcaption><span class="fn"></span>The data squares: one square per unit, a bigger square means more, an empty unit is a dot, and one Signal square marks the point of attention. Eight weeks of the home page’s activity chart.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- 07 Motion ------------------------------------------------------------------------------- -->
+    <section class="sg" aria-labelledby="motion-h">
+      <header class="sg-h"><span class="sn">07</span><h2 id="motion-h">Motion</h2>
+        <p>{`One curve and one length: ${TOKEN.desktop} ms on a desktop, ${TOKEN.phone} ms under 900 px. Scrolling is never taken over. With reduced motion every moment lands at once or holds still.`}</p></header>
+      <div class="g24 motion">
+        <figure class="curve">
+          <svg viewBox={`-16 -16 ${S + 32} ${S + 32}`} role="img" aria-label={`The curve ${CURVE}: it leaves fast and settles slowly`}>
+            <path class="axis" d={`M0 0V${S}H${S}`} />
+            <path class="handle" d={`M0 ${S}L${P1[0]} ${P1[1]}M${S} 0L${P2[0]} ${P2[1]}`} />
+            <path class="line" d={`M0 ${S}C${P1[0]} ${P1[1]} ${P2[0]} ${P2[1]} ${S} 0`} />
+            <rect class="anchor" x="-3" y={S - 3} width="6" height="6" /><rect class="anchor" x={S - 3} y="-3" width="6" height="6" />
+            <rect class="hp" x={P1[0] - 2.5} y={P1[1] - 2.5} width="5" height="5" /><rect class="hp" x={P2[0] - 2.5} y={P2[1] - 2.5} width="5" height="5" />
+          </svg>
+          <figcaption><span class="fn"></span><code>{CURVE}</code></figcaption>
+        </figure>
+        <div class="run-demo">
+          <div class="track"><span class="dot"></span></div>
+          <button class="button sg-play" type="button" aria-pressed="false">Play the curve</button>
+          <p class="an run-t"><span class="d">{TOKEN.desktop} ms</span><span class="m">{TOKEN.phone} ms</span></p>
+        </div>
+      </div>
+      <div class="tbl-wrap" tabindex="0" role="region" aria-label="Motion moments, scrolls sideways">
+        <table class="moments">
+          <thead><tr><th scope="col">Moment</th><th scope="col">Where</th><th scope="col">Time</th><th scope="col">Curve</th><th scope="col">Reduced motion</th></tr></thead>
+          <tbody>{MOMENTS.map((m) => <tr><th scope="row">{m.name}</th><td>{m.where}</td><td>{m.ms == null ? 'Scroll' : `${m.token ? `${TOKEN.desktop} or ${TOKEN.phone}` : m.ms} ms`}</td><td>{curveName(m.curve)}</td><td>{m.reduced}</td></tr>)}</tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 08 Voice -------------------------------------------------------------------------------- -->
+    <section class="sg" aria-labelledby="voice-h">
+      <header class="sg-h"><span class="sn">08</span><h2 id="voice-h">Voice</h2>
+        <p>Copy states a fact or a rule. Every line could only be about Thomas’s work.</p></header>
+      <table class="voice">
+        <thead><tr><th scope="col">Rule</th><th scope="col">Write</th><th scope="col">Not</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Third person</th><td>Thomas drew the icons by hand.</td><td>I drew the icons by hand.</td></tr>
+          <tr><th scope="row">No em or en dashes</th><td>Two apps, both built solo.</td><td>Two apps <s>&#8212;</s> both built solo.</td></tr>
+          <tr><th scope="row">Plain words</th><td>He tested it twice.</td><td>He rigorously validated it.</td></tr>
+          <tr><th scope="row">No figure without a source</th><td>12 briefs, each checked against its filing.</td><td>Dozens of happy users.</td></tr>
+          <tr><th scope="row">A label never describes its own control</th><td>Play the curve</td><td>Click this button to play</td></tr>
+          <tr><th scope="row">The point goes first, in the active voice</th><td>He cut blocking errors from 61 to 0.</td><td>After careful work, errors were reduced.</td></tr>
+          <tr><th scope="row">A heading is a claim, in sentence case, with a full stop</th><td>He works at two distances.</td><td>Precision Obsession</td></tr>
+          <tr><th scope="row">The reason comes with the choice</th><td>He moved the launch because his own audit found six defects.</td><td>He moved the launch.</td></tr>
+          <tr><th scope="row">Split the work plainly</th><td>Thomas designed Underline and built it with Claude Code.</td><td>Thomas coded Underline from scratch.</td></tr>
+          <tr><th scope="row">The limit sits beside the number</th><td>Two web apps, built solo, both pre-revenue.</td><td>Two successful web apps.</td></tr>
+          <tr><th scope="row">Round as the source rounds</th><td>More than $4,000 in apparel sales.</td><td>$5K in sales.</td></tr>
+          <tr><th scope="row">Show the reason, never praise the work</th><td>Body text reads 7:1 or better on both grounds.</td><td>A calm, elegant palette!</td></tr>
+          <tr><th scope="row">No list of three for rhythm</th><td>Brand and product design.</td><td>Bold, smart and simple.</td></tr>
+          <tr><th scope="row">A detail opens on a past-tense verb</th><td>Redrew the dove on golden-ratio circles.</td><td>Ensuring a cohesive brand.</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+</Base>
+
+<script>
+  // ponytail: three small toggles; the filter, the slider's glass and the buttons' spring come from site.js and Liquid.astro.
+  const q = <T extends Element>(s: string) => document.querySelector<T>(s)
+  const press = (b: HTMLButtonElement | null, f: (on: boolean) => void) => b?.addEventListener('click', () => {
+    const on = b.getAttribute('aria-pressed') !== 'true'
+    b.setAttribute('aria-pressed', String(on)); f(on)
+  })
+  press(q('.sg-play'), (on) => q('.run-demo')!.classList.toggle('moved', on))
+  press(q('.sg-grid'), (on) => document.documentElement.classList.toggle('sg-baseline', on))
+  // The example capsule: the mark moves to the pressed item and nothing else happens.
+  const cap = [...document.querySelectorAll<HTMLButtonElement>('.sg-cap button')]
+  cap.forEach((b) => b.addEventListener('click', () => cap.forEach((c) => (c === b ? c.setAttribute('aria-current', 'true') : c.removeAttribute('aria-current')))))
+  // Examples only (Thomas, 14 November): a link among the controls answers hover, focus and press but
+  // goes nowhere.
+  q('.ctl')?.addEventListener('click', (e) => { if ((e.target as Element).closest('a')) e.preventDefault() })
+  const r = q<HTMLInputElement>('.sg-rs input'), o = q('.sg-rs output'), s = q<HTMLElement>('.rs-sample')
+  r?.addEventListener('input', () => { o!.textContent = `${r.value}%`; s!.style.fontSize = `${(+r.value / 100) * 3}rem` })
+</script>
+
+<style>
+  /* Figures are numbered down the page; nothing on this sheet is set under 14 px. */
+  .sgw { counter-reset: fig; }
+  .fn::before { counter-increment: fig; content: "Fig. " counter(fig, decimal-leading-zero); font-family: var(--mono); color: var(--carbon); margin-right: 12px; }
+  :global(.toc .num) { font-size: 0.875rem; }
+  .an { font-size: 0.875rem; line-height: 1.25rem; color: var(--graphite); font-variant-numeric: tabular-nums; }
+  .cn { font: 400 1.125rem/1.5rem var(--display); letter-spacing: var(--tr-endless); color: var(--carbon); }
+  code { font: inherit; }
+  figure { margin: 0; }
+  figcaption { margin-top: 12px; max-width: var(--measure); font-size: 0.875rem; line-height: 1.25rem; color: var(--graphite); }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th { font-weight: 400; text-align: left; }
+  thead th { padding: 0 16px 8px 0; font-size: 0.875rem; line-height: 1.25rem; color: var(--graphite); border-bottom: 1px solid var(--carbon); }
+  tbody :is(th, td) { padding: 16px 16px 16px 0; vertical-align: top; border-bottom: 1px solid color-mix(in srgb, var(--carbon) 18%, transparent); }
+  .g24 { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); column-gap: var(--g); }
+
+  .sg { padding-block: 32px 128px; border-top: 1px solid var(--carbon); }
+  .sg:first-of-type { margin-top: 96px; }
+  .sg-h { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); column-gap: var(--g); align-items: baseline; margin-bottom: 48px; }
+  .sn { grid-column: 1 / 2; font: 400 0.875rem/1.25rem var(--mono); }
+  .sg-h h2 { grid-column: 2 / 9; font: 400 2rem/2.25rem var(--display); letter-spacing: var(--tr-endless); }
+  .sg-h p { grid-column: 9 / 21; max-width: var(--measure); color: var(--graphite); }
+  .alt + .alt { margin-top: 96px; }
+
+  /* 01 Logo: one ruled row per mark, both grounds side by side and its smallest size at true pixels. */
+  .logos th[scope="row"] { width: 25%; }
+  .ln { display: block; font: 400 1.5rem/1.75rem var(--display); letter-spacing: var(--tr-endless); }
+  .logos .an { display: block; margin-top: 8px; max-width: 18rem; }
+  .logos td { width: 25%; }
+  .cell { position: relative; aspect-ratio: 2 / 1; }
+  .cell svg { position: absolute; inset: 22% 18%; width: 64%; height: 56%; }
+  .on-mat { background: var(--mat); color: var(--carbon); }
+  .on-carbon { background: var(--carbon); color: var(--field); }
+  .minc .an { margin-top: 12px; }
+  .at-min { display: flex; align-items: center; gap: 6px; }
+  .at-min svg { flex: none; }
+  /* A dimension tick beside the mark: a hairline with two short ends, exactly the mark's height. */
+  .dim { width: 5px; border-block: 1px solid var(--carbon); background: linear-gradient(var(--carbon), var(--carbon)) 2px 0 / 1px 100% no-repeat; }
+  .rules { margin-top: 64px; align-items: start; }
+  .clear { grid-column: 1 / 13; }
+  .clear-art { position: relative; display: grid; place-items: center; aspect-ratio: 2 / 1; background: var(--mat); }
+  .clear-art svg { position: relative; width: 50%; height: auto; }
+  .zone { position: absolute; left: 50%; top: 50%; width: calc(50% + 50% / var(--r)); aspect-ratio: calc(var(--r) + 1) / 2; translate: -50% -50%; border: 1px dashed var(--carbon); }
+  .zone i { position: absolute; width: 6px; height: 6px; margin: -3.5px; background: var(--signal); }
+  .zone i:nth-child(1) { left: 0; top: 0; } .zone i:nth-child(2) { right: 0; top: 0; margin-right: -3.5px; }
+  .zone i:nth-child(3) { left: 0; bottom: 0; margin-bottom: -3.5px; } .zone i:nth-child(4) { right: 0; bottom: 0; margin: 0 -3.5px -3.5px 0; }
+  .ruled { border-top: 1px solid var(--carbon); }
+  .ruled li { padding-block: 16px; border-bottom: 1px solid color-mix(in srgb, var(--carbon) 18%, transparent); }
+  .dont { grid-column: 14 / 25; }
+
+  /* 02 Color B: every ink on every ground, as set text, with its ratio. */
+  .matrix { display: grid; grid-template-columns: minmax(8rem, 1fr) repeat(2, minmax(0, 3fr)); border-top: 1px solid var(--carbon); }
+  .matrix { border-top: 0; }
+  .mx-h { display: grid; align-content: start; gap: 4px; padding: 0 16px 16px; border-bottom: 1px solid var(--carbon); }
+  .mx-h .sw { width: 2rem; height: 2rem; margin-bottom: 8px; outline: 1px solid color-mix(in srgb, var(--carbon) 30%, transparent); outline-offset: -1px; }
+  .mx-k { border-bottom: 1px solid var(--carbon); }
+  .mx-r .an { margin-top: 4px; }
+  .mx-role { color: var(--carbon); max-width: 14rem; }
+  .mx-r { display: grid; align-content: start; padding: 20px 16px 24px 0; border-bottom: 1px solid color-mix(in srgb, var(--carbon) 18%, transparent); }
+  .mx-c { display: flex; flex-direction: column; justify-content: space-between; gap: 16px; padding: 20px 16px; border-bottom: 1px solid color-mix(in srgb, var(--carbon) 18%, transparent); }
+  .mx-t { max-width: var(--measure); }
+  .mx-note { display: block; margin-top: 4px; }
+  .mx-v { font-size: 0.875rem; line-height: 1.25rem; color: var(--carbon); }
+  .mx-v .r { font-size: 1.125rem; }
+
+  .kc { width: 1rem; height: 1rem; outline: 1px solid color-mix(in srgb, var(--carbon) 18%, transparent); outline-offset: -1px; }
+
+  /* 03 Type A: a spread per face; the hairlines are the font file's own metrics. */
+  .faces { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 64px var(--g); }
+  .face { display: flex; flex-direction: column; } /* one frame height for all, so captions start level too */
+  .spec { position: relative; }
+  .spec svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .spec line { stroke: color-mix(in srgb, var(--carbon) 30%, transparent); stroke-width: 1; vector-effect: non-scaling-stroke; }
+  .spec line.bl { stroke: var(--carbon); }
+  .spec text { fill: var(--carbon); font-variant-numeric: normal; }
+  /* Each label stands on its line: Geist's baseline is 5 px above the foot of a 14/20 line (measured).
+     Its paper stops at the baseline, so the hairline runs on under the letters. */
+  .ml { position: absolute; right: 0; translate: 0 calc(-100% + 5px); padding: 0 0 0 8px; background: linear-gradient(var(--field), var(--field)) 0 0 / 100% calc(100% - 5px) no-repeat; }
+  .face figcaption .cn, .fj { display: block; margin-top: 4px; }
+  .fj { color: var(--carbon); font-size: 1rem; line-height: 1.5rem; }
+  .face figcaption .an { display: block; margin-top: 4px; }
+  .credit a { display: inline-flex; align-items: center; gap: 6px; color: var(--carbon); }
+  .credit :global(.arr) { width: 0.625rem; height: auto; flex: none; }
+
+  /* 03 Type B: the scale, each role set in the stylesheet's own declaration. */
+  .scale { margin-top: 96px; }
+  .scale li { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); column-gap: var(--g); align-items: baseline; padding-block: 24px; border-top: 1px solid color-mix(in srgb, var(--carbon) 18%, transparent); }
+  .scale li:first-child { border-top: 1px solid var(--carbon); }
+  .sc-k { grid-column: 1 / 7; display: grid; }
+  .sc-k .cn { margin-bottom: 4px; }
+  .sc-t { grid-column: 7 / 25; min-width: 0; max-width: 46rem; color: var(--carbon); }
+  .flag { color: var(--carbon); }
+  .flag::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 8px; background: var(--signal); vertical-align: 2px; }
+  :global(html.sg-baseline) .scale { background: repeating-linear-gradient(transparent 0 3px, color-mix(in srgb, var(--carbon) 14%, transparent) 3px 4px); }
+
+  .mini td, .mini th { padding-block: 8px; font-size: 0.875rem; line-height: 1.25rem; }
+  .mini td:last-child, .mini thead th:last-child { text-align: right; padding-right: 0; }
+
+  /* 04 Grid and space. */
+  .cols { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); column-gap: var(--g); height: 8rem; }
+  .cols span { position: relative; background: var(--mat); }
+  .cols b { position: absolute; left: 0; right: 0; bottom: 8px; font: 400 0.875rem/1 var(--sans); text-align: center; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  @media (max-width: 1099px) { .cols b { font-size: 0.6875rem; } } /* two digits fit a 20 px column */
+  .gs { margin-top: 48px; align-items: start; }
+  .gt { grid-column: 1 / 10; }
+  .sp { grid-column: 12 / 25; }
+  .bars li { display: flex; align-items: center; gap: 16px; padding-block: 6px; }
+  .bar-v { flex: none; height: 12px; background: var(--carbon); }
+
+  /* 05 Controls. */
+  .ctl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--g); border-top: 1px solid var(--carbon); }
+  .c-item { display: grid; grid-template-rows: auto 1fr; gap: 16px; padding-block: 32px; border-bottom: 1px solid color-mix(in srgb, var(--carbon) 18%, transparent); }
+  .c-item > p { max-width: var(--measure); font-size: 1rem; line-height: 1.5rem; color: var(--graphite); }
+  .c-item > p .cn { display: block; margin-bottom: 4px; }
+  .c-live { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; min-height: 5rem; }
+  .ctl .button { margin-top: 0; cursor: pointer; }
+  .ctl .seg { position: relative; top: auto; margin: 0 0 0 -4px; }
+  .chips-demo { display: flex; flex-wrap: wrap; gap: 8px 16px; width: 100%; font-size: 1rem; line-height: 1.5rem; }
+  .chips-demo li { display: inline-flex; align-items: center; gap: 8px; }
+  :global(html[data-filter="ground"]) .chips-demo li:not([data-k="ground"]),
+  :global(html[data-filter="ink"]) .chips-demo li:not([data-k="ink"]),
+  :global(html[data-filter="marker"]) .chips-demo li:not([data-k="marker"]) { display: none; }
+  .sg-rs { flex: 1 1 14rem; }
+  .rs-sample { width: 6rem; font: 400 3rem/1 var(--display); letter-spacing: var(--tr-endless); }
+  .sg-cap { position: relative; top: auto; z-index: 0; margin: 0 0 0 -4px; } /* an example: it scrolls with the page, under the real Contents */
+  /* Only the title's point carries the page-change name; two of one name abort a view transition. */
+  .matrix .point, .pt-big .point { view-transition-name: none; }
+  .c-live.more .read { margin-top: 0; font-size: 1.125rem; }
+  .ctl .button[aria-pressed="true"], .st-on { background-color: var(--gl-fill-2); } /* glass.css gives .v-press this; the toggle here needs it too */
+  .states { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 32px var(--g); margin-top: 64px; padding-top: 32px; border-top: 1px solid var(--carbon); }
+  .states li { display: grid; align-content: start; justify-items: start; gap: 4px; }
+  .states .button.st { margin: 0 0 16px; pointer-events: none; }
+  .st-hover { background-color: var(--gl-fill-2); }
+  .gc { margin-top: 64px; align-items: start; }
+  .gc-rules { grid-column: 1 / 14; counter-reset: rule; }
+  .gc-rules li { display: grid; grid-template-columns: 2rem 1fr; }
+  .gc-rules li::before { counter-increment: rule; content: counter(rule); font-family: var(--mono); font-size: 0.875rem; color: var(--graphite); }
+  .gc-num { grid-column: 15 / 25; }
+  .gc-num .mini :is(td, thead th) { text-align: left; }
+  .gc-num th[scope="row"] { width: 7rem; }
+  .src { display: block; margin-top: 2px; }
+  .gc-credit { margin-top: 48px; max-width: var(--measure); }
+  .gc-credit a { display: inline-flex; align-items: center; gap: 4px; color: var(--carbon); }
+  .gc-credit :global(.arr) { width: 0.625rem; height: auto; flex: none; }
+
+  /* 06 Marks. */
+  .marks { align-items: start; row-gap: 48px; }
+  .m-pt { grid-column: 1 / 11; }
+  .pt-row { display: flex; align-items: flex-end; gap: 48px; }
+  .pt-big { font: 400 6rem/1 var(--display); letter-spacing: var(--tr-endless); }
+  .pt-zoom { display: grid; justify-items: start; gap: 8px; }
+  .pt-zoom i { width: calc(var(--w) * 6rem * 4); aspect-ratio: 1; background: var(--signal); }
+  .pt-zoom b { font-weight: 400; padding-top: 6px; border-top: 1px solid var(--carbon); width: calc(var(--w) * 6rem * 4); white-space: nowrap; }
+  .m-ar { grid-column: 12 / 18; }
+  .arrows li { display: flex; align-items: center; gap: 16px; padding-block: 12px; border-bottom: 1px solid color-mix(in srgb, var(--carbon) 18%, transparent); }
+  .arrows :global(.arr) { width: 2.5rem; height: auto; flex: none; }
+  .arrows :global(.arr.out), .arrows :global(.arr.down) { width: 1.5rem; margin-inline: 0.5rem; }
+  .m-sq { grid-column: 19 / 25; }
+  .m-sq .sq { margin-top: 0; }
+  /* Square cells (Thomas, 14 November: they drew as rectangles): eight weeks of 1.25 rem squares. */
+  .m-sq .sq { max-width: none; }
+  .m-sq .cells { grid-template: repeat(7, 1.25rem) / repeat(8, 1.25rem); width: fit-content; }
+
+  /* 07 Motion. */
+  .motion { align-items: center; }
+  .curve { grid-column: 1 / 8; }
+  .curve svg { display: block; box-sizing: border-box; width: 100%; height: auto; overflow: visible; padding: 24px; background: var(--mat); }
+  .curve path { fill: none; vector-effect: non-scaling-stroke; }
+  .axis { stroke: color-mix(in srgb, var(--carbon) 30%, transparent); stroke-width: 1; }
+  .handle { stroke: var(--carbon); stroke-width: 1; stroke-dasharray: 3 3; }
+  .line { stroke: var(--carbon); stroke-width: 2; }
+  .anchor { fill: var(--signal); }
+  .hp { fill: var(--field); stroke: var(--carbon); stroke-width: 1; vector-effect: non-scaling-stroke; }
+  .run-demo { grid-column: 9 / 25; display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: 16px; row-gap: 24px; }
+  .sg-play { margin-top: 0; cursor: pointer; }
+  .track { grid-column: 1 / -1; position: relative; height: 3rem; border-bottom: 1px solid var(--carbon); }
+  .dot { position: absolute; left: 0; bottom: 0; width: 3rem; height: 3rem; background: var(--carbon); transition: left var(--vt) var(--ease), translate var(--vt) var(--ease); }
+  .moved .dot { left: 100%; translate: -100% 0; }
+  :global(html.still) .dot { transition: none; }
+  .run-t .m { display: none; }
+  .tbl-wrap { margin-top: 64px; overflow-x: auto; }
+  .moments { min-width: 56rem; font-size: 0.875rem; line-height: 1.25rem; }
+  .moments th[scope="row"] { font-size: 1rem; line-height: 1.25rem; white-space: nowrap; }
+  .moments td:nth-child(3) { white-space: nowrap; }
+
+  /* 08 Voice. */
+  .voice tbody th { width: 34%; }
+  .voice td:last-child { color: var(--graphite); }
+  .voice s { text-decoration-color: var(--signal); }
+
+  @media (max-width: 1279px) {
+    .m-pt { grid-column: 1 / 25; }
+    .m-ar { grid-column: 1 / 12; }
+    .m-sq { grid-column: 13 / 25; }
+  }
+  @media (max-width: 899px) {
+    .run-t .d { display: none; } .run-t .m { display: inline; }
+    .sg-h h2 { grid-column: 2 / 25; }
+    .sg-h p { grid-column: 1 / -1; margin-top: 16px; }
+    .clear, .dont { grid-column: 1 / -1; }
+    .dont { margin-top: 32px; }
+    .sc-k, .sc-t { grid-column: 1 / -1; }
+    .sc-t { margin-top: 12px; }
+    .gt, .sp { grid-column: 1 / -1; }
+    .sp { margin-top: 48px; }
+    .ctl { grid-template-columns: minmax(0, 1fr); }
+    .states { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .gc-rules, .gc-num { grid-column: 1 / -1; }
+    .gc-num { margin-top: 48px; }
+    .curve { grid-column: 1 / 13; }
+    .run-demo { grid-column: 1 / -1; margin-top: 32px; }
+  }
+  @media (max-width: 599px) {
+    .g24, .sg-h, .scale li, .cols { column-gap: 0; }
+    .sn { grid-column: 1 / 4; }
+    .sg-h h2 { grid-column: 4 / -1; }
+    .sg:first-of-type { margin-top: 64px; }
+    .sg { padding-bottom: 96px; }
+    /* On a phone every part spans the full width, so the strip shows that one column, not 24 slivers. */
+    .cols { grid-template-columns: minmax(0, 1fr); height: 4rem; }
+    .cols span:not(:first-child) { display: none; }
+    .cols b { right: auto; left: 12px; text-align: left; }
+    .cols b::after { content: ' to 24, one column across the page'; }
+    /* The logo rows stack: name, then both grounds side by side, then the smallest size. */
+    .logos thead { display: none; }
+    .logos tr { display: grid; grid-template-columns: 1fr 1fr; column-gap: 8px; padding-block: 16px; border-bottom: 1px solid color-mix(in srgb, var(--carbon) 18%, transparent); }
+    .logos :is(th, td) { width: auto !important; padding: 0; border: 0; }
+    .logos th[scope="row"], .logos .minc { grid-column: 1 / -1; }
+    .logos th[scope="row"] { margin-bottom: 12px; }
+    .logos .minc { margin-top: 12px; display: flex; align-items: center; gap: 12px; }
+    .logos .minc .an { margin: 0; }
+    .faces { grid-template-columns: minmax(0, 1fr); }
+    .spec .ml:nth-of-type(1) { display: none; }
+    .matrix { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .matrix .mx-k { display: none; }
+    .mx-r { grid-column: 1 / -1; padding-bottom: 8px; border: 0; }
+    .mx-c { padding: 12px; }
+    .mx-t { font-size: 1rem; line-height: 1.5rem; }
+    .curve { grid-column: 1 / -1; max-width: 20rem; }
+    .states { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .m-ar, .m-sq { grid-column: 1 / -1; }
+    .pt-big { font-size: 4rem; }
+    .pt-row { gap: 24px; }
+    .voice thead { display: none; }
+    .voice tr { display: grid; padding-block: 12px; border-bottom: 1px solid color-mix(in srgb, var(--carbon) 18%, transparent); }
+    .voice :is(th, td) { width: auto !important; padding: 2px 0; border: 0; }
+    .voice td:nth-child(2)::before { content: "Write: "; color: var(--graphite); }
+    .voice td:nth-child(3)::before { content: "Not: "; }
+  }
+
+  /* Rules, fewest that hold (11 November): one Carbon rule opens each section, and a table's header
+     keeps the line under it. Rows, lists, the type scale and the controls part by space alone; only
+     the long motion table keeps faint row lines, since its five columns need a line to read across. */
+  tbody :is(th, td), .ruled li, .arrows li, .scale li, .scale li:first-child, .c-item,
+  .mx-r, .mx-c, .mx-k, .logos tr, .voice tr { border-bottom: 0; border-top: 0; }
+  .ruled, .ctl, .states { border-top: 0; }
+  .ruled li, .arrows li { padding-block: 10px; }
+  .states { padding-top: 0; }
+  .moments tbody :is(th, td) { border-bottom: 1px solid color-mix(in srgb, var(--carbon) 12%, transparent); }
+</style>

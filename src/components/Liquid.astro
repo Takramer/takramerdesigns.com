@@ -1,0 +1,362 @@
+---
+// Liquid glass on the control layer, the one that floats over the content, as Apple uses it. Two
+// optics, each where it is strongest:
+//
+// 1. Surfaces (the bar's capsules, its menus, the filters' track, the controls over a film or the
+//    light table) are live glass: lib/refract.ts bends the real page under them as it scrolls, and
+//    the stylesheet (styles/glass.css) gives the material, rim light and shadow.
+// 2. Lenses (a slider's thumb, the filters' selection) magnify what they pass. Those use
+//    liquid-glass-js (github.com/eamonliu/liquid-glass-js, MIT), which refracts a clone of the small
+//    thing under the lens, so the lens works in Safari and Firefox as well.
+//
+// The touch follows Apple's: a press swells the control on a spring with a little overshoot, a light
+// follows the finger inside it, a drag pulls it toward the finger like a drop of water and stretches
+// it along the way it moves, and a release springs it back. Under reduced motion it changes state at
+// once. Without script the controls keep the stylesheet's material and lose only the lens.
+---
+<script>
+  import { LiquidGlass } from 'liquid-glass-js'
+  import { LIVE, refract } from '../lib/refract'
+
+  type Opts = Record<string, number | string>
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
+  const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v))
+
+  // ---- Springs, on one shared frame loop ---------------------------------------------------------
+  // Apple's default interactive spring: a response of about 0.3 s, damped to 0.7, so it settles with
+  // one small overshoot. Four steps a frame keep it stable on long frames.
+  class Spring {
+    x: number; v = 0; to: number; w: number; z: number; eps: number
+    constructor(x: number, eps = 0.05, response = 0.3, damping = 0.7) {
+      this.x = this.to = x; this.eps = eps; this.w = (2 * Math.PI) / response; this.z = damping
+    }
+    step(dt: number) {
+      if (reduce) return this.snap()
+      const k = this.w * this.w, c = 2 * this.z * this.w, h = dt / 4
+      for (let i = 0; i < 4; i++) { this.v += (-k * (this.x - this.to) - c * this.v) * h; this.x += this.v * h }
+    }
+    get still() { return Math.abs(this.x - this.to) < this.eps && Math.abs(this.v) < this.eps * 10 }
+    snap() { this.x = this.to; this.v = 0 }
+  }
+  const running = new Set<() => boolean>() // each returns true while it still has to move
+  let raf = 0, last = 0
+  const loop = (t: number) => {
+    const dt = Math.min(0.05, last ? (t - last) / 1000 : 1 / 60)
+    last = t
+    for (const f of running) if (!f(dt)) running.delete(f)
+    raf = running.size ? requestAnimationFrame(loop) : 0
+    if (!raf) last = 0
+  }
+  const animate = (f: (dt: number) => boolean) => { running.add(f); if (!raf) raf = requestAnimationFrame(loop) }
+
+  // ---- A glass that lives inside its host ----------------------------------------------------------
+  // The library pins its glass to the window and moves it on scroll; here the lens and the glass go
+  // into a mount inside the host and every position is measured from the host's corner.
+  class Inset extends LiquidGlass {
+    host?: HTMLElement; strip = ''
+    constructor(host: HTMLElement, mount: HTMLElement, bg: HTMLElement | null, opts: Opts, strip = '') {
+      super({ ...opts, background: bg, draggable: false, zIndex: 0, x: 0, y: 0 })
+      this.host = host; this.strip = strip
+      for (const el of [this.lensEl, this.glassEl]) { el.classList.add('lq-in'); el.setAttribute('aria-hidden', 'true') }
+      mount.prepend(this.lensEl, this.glassEl)
+      this.refresh()
+    }
+    _bindEvents() { this._onSync = () => {} }
+    _cloneBackground() {
+      super._cloneBackground()
+      const c = this.lensInner.firstElementChild as HTMLElement | null
+      if (!c) return
+      // The clone is a picture only: no controls, no glass, no ids or transition names to collide.
+      c.querySelectorAll(`video, .lqg-lens, .lqg-glass, .lq-knob${this.strip ? ', ' + this.strip : ''}`).forEach((n) => n.remove())
+      for (const n of [c, ...c.querySelectorAll<HTMLElement>('*')]) {
+        n.removeAttribute('id'); n.style.viewTransitionName = 'none'
+        if (n instanceof HTMLImageElement) n.loading = 'eager'
+      }
+      c.classList.remove('uncover')
+      c.inert = true; c.removeAttribute('role'); c.removeAttribute('aria-label')
+    }
+    _syncBg() {
+      if (!this.host) { this.bgX = this.bgY = 0; return }
+      const h = this.host.getBoundingClientRect()
+      const r = this.background ? this.background.getBoundingClientRect() : h
+      this.bgX = r.left - h.left; this.bgY = r.top - h.top
+      this.lensInner.style.width = `${r.width}px`; this.lensInner.style.height = `${r.height}px`
+    }
+    // Re-take the picture without rebuilding the maps.
+    reclone() { this._cloneBackground(); this._syncBg(); this.placeLens() }
+  }
+
+  const knobOf = (host: HTMLElement) => {
+    const k = document.createElement('span')
+    k.className = 'lq-knob'; k.setAttribute('aria-hidden', 'true')
+    // Last, so site.js's firstElementChild and the label's own span stay what they were.
+    host.append(k)
+    return k
+  }
+
+  // ---- Buttons --------------------------------------------------------------------------------------
+  // The press moves the whole control, label and all, as Apple's do; the material is the stylesheet's.
+  function button(el: HTMLElement, peak = 1.1) {
+    el.classList.add('lq')
+    const s = new Spring(1, 0.001), ox = new Spring(0), oy = new Spring(0)
+    let held = false, x0 = 0, y0 = 0
+    const frame = () => {
+      for (const sp of [s, ox, oy]) sp.step(1 / 60)
+      const w = el.offsetWidth || 1, h = el.offsetHeight || 1
+      // Pulled sideways it grows that way and narrows the other, keeping its volume, like a drop.
+      const ax = Math.abs(ox.x) / w, ay = Math.abs(oy.x) / h
+      const sx = s.x * (1 + 0.9 * ax - 0.45 * ay), sy = s.x * (1 + 0.9 * ay - 0.45 * ax)
+      el.style.transform = `translate(${ox.x.toFixed(2)}px, ${oy.x.toFixed(2)}px) scale(${sx.toFixed(4)}, ${sy.toFixed(4)})`
+      el.style.setProperty('--lq-p', clamp((s.x - 1) / (peak - 1), 0, 1).toFixed(3))
+      const moving = held || ![s, ox, oy].every((sp) => sp.still)
+      if (!moving) { el.style.transform = ''; el.style.setProperty('--lq-p', '0') }
+      return moving
+    }
+    const light = (e: PointerEvent) => {
+      const r = el.getBoundingClientRect()
+      el.style.setProperty('--lx', `${(((e.clientX - r.left) / r.width) * 100).toFixed(1)}%`)
+      el.style.setProperty('--ly', `${(((e.clientY - r.top) / r.height) * 100).toFixed(1)}%`)
+    }
+    el.addEventListener('pointerdown', (e) => {
+      if (e.button) return
+      held = true; x0 = e.clientX; y0 = e.clientY; s.to = peak; light(e)
+      animate(frame)
+    })
+    addEventListener('pointermove', (e) => {
+      if (!held) return
+      light(e)
+      // Rubber band: it follows the finger at first, then less and less, up to about 14 px.
+      const band = (d: number, r: number) => Math.sign(d) * r * (1 - Math.exp(-Math.abs(d) / (r * 2.5)))
+      ox.to = band(e.clientX - x0, 14); oy.to = band(e.clientY - y0, 10)
+    }, { passive: true })
+    const up = () => { if (!held) return; held = false; s.to = 1; ox.to = 0; oy.to = 0; animate(frame) }
+    addEventListener('pointerup', up); addEventListener('pointercancel', up)
+  }
+
+  // ---- The reading-size slider ----------------------------------------------------------------------
+  // At rest the thumb is a white pill. Pressed, it swells into clear glass that magnifies the track
+  // under it, follows the finger without stepping, stretches with its speed, and on release shrinks
+  // back and settles on the nearest step. The range stays in the page, unseen, for keys and screen
+  // readers; touch and pointer drive it from the track.
+  function slider(host: HTMLElement) {
+    const range = host.querySelector<HTMLInputElement>('input[type="range"]')
+    if (!range) return
+    // A slider without a drawn track (a case's mark scrubber) gets one: a line and its fill.
+    let track = host.querySelector<HTMLElement>('.rs-track')
+    if (!track) {
+      track = document.createElement('span'); track.className = 'rs-track'; track.setAttribute('aria-hidden', 'true')
+      track.append(document.createElement('i')); range.before(track)
+    }
+    host.classList.add('lq', 'lq-range')
+    const W = 64, H = 40, REST = 0.62, RW = W * REST
+    const knob = knobOf(host)
+    const g = new Inset(host, knob, track, { width: W, height: H, radius: H / 2, scale: 26, depth: 20, curvature: 2.2, chroma: 0.08, edge: 1, glow: 0, blur: 0 })
+    const min = +range.min, max = +range.max, step = +range.step || 1
+    const geo = () => {
+      const b = host.getBoundingClientRect(), t = track.getBoundingClientRect()
+      return { left: b.left, tx: t.left - b.left, tw: t.width, cy: t.top - b.top + t.height / 2 }
+    }
+    const at = (val: number, G = geo()) => G.tx + RW / 2 + ((val - min) / (max - min)) * (G.tw - RW)
+    const x = new Spring(at(+range.value), 0.05, 0.28, 0.75), s = new Spring(REST, 0.001)
+    // A drag moves the thumb by how far the finger travels, measured against the track as it was when
+    // pressed: the text grows as the value does and moves the track, which must not feed back.
+    let held = false, px = 0, px0 = 0, f0 = 0, tw0 = 1
+    const frac = () => clamp(f0 + (px - px0) / (tw0 - RW), 0, 1)
+    const frame = () => {
+      const G = geo()
+      if (held) x.to = G.tx + RW / 2 + frac() * (G.tw - RW)
+      x.step(1 / 60); s.step(1 / 60)
+      const st = clamp(Math.abs(x.v) / 2400, 0, 0.28)
+      const sx = s.x * (1 + st), sy = s.x * (1 - st * 0.45)
+      g.moveTo(x.x - W / 2, G.cy - H / 2)
+      knob.style.transformOrigin = `${x.x.toFixed(2)}px ${G.cy.toFixed(2)}px`
+      knob.style.transform = `scale(${sx.toFixed(4)}, ${sy.toFixed(4)})`
+      knob.style.setProperty('--lq-p', clamp((s.x - REST) / (1 - REST), 0, 1).toFixed(3))
+      host.style.setProperty('--rs-fill', `${(x.x - G.tx).toFixed(2)}px`)
+      return held || !(x.still && s.still)
+    }
+    const set = () => {
+      const f = frac()
+      const val = min + Math.round((f * (max - min)) / step) * step
+      if (val !== +range.value) { range.value = String(val); range.dispatchEvent(new Event('input', { bubbles: true })) }
+    }
+    host.addEventListener('pointerdown', (e) => {
+      if (e.button) return
+      e.preventDefault()
+      const G = geo(), here = e.clientX - G.left
+      // Pressed on the thumb it picks it up where it is; pressed on the track it jumps there first.
+      f0 = Math.abs(here - x.x) <= RW / 2 + 6 ? (+range.value - min) / (max - min) : clamp((here - G.tx - RW / 2) / (G.tw - RW), 0, 1)
+      held = true; px = px0 = e.clientX; tw0 = G.tw; s.to = 1
+      host.setPointerCapture(e.pointerId); set(); animate(frame)
+    })
+    host.addEventListener('pointermove', (e) => { if (held) { px = e.clientX; set() } })
+    const up = () => { if (!held) return; held = false; s.to = REST; x.to = at(+range.value); animate(frame) }
+    host.addEventListener('pointerup', up); host.addEventListener('pointercancel', up)
+    // Keys move the range; the thumb glides to it.
+    range.addEventListener('input', () => { if (!held) { x.to = at(+range.value); animate(frame) } })
+    // A value set by script (a mark drawing itself) moves the thumb with it, at once.
+    range.addEventListener('lq:set', () => { if (!held) { x.to = at(+range.value); x.snap(); animate(frame) } })
+    new ResizeObserver(() => { g.reclone(); x.to = at(+range.value); x.snap(); animate(frame) }).observe(track)
+    animate(frame)
+  }
+
+  // ---- The /projects filters: a glass selection, like iOS's tab bar ----------------------------------
+  // A pill sits behind the chosen filter. Choosing another, it slides there and, while it moves, turns
+  // to clear glass that magnifies the labels it passes. It can also be dragged along the row; let go,
+  // it lands on the nearest filter and chooses it.
+  function filters(group: HTMLElement) {
+    const buttons = [...group.querySelectorAll<HTMLButtonElement>('button')]
+    if (!buttons.length) return
+    group.classList.add('lq', 'lq-seg')
+    const knob = knobOf(group)
+    const PAD = 0
+    // The pill is as tall as a filter: 36 at a desk, 44 under a finger (glass.css).
+    const box = (b: HTMLElement) => {
+      const g = group.getBoundingClientRect(), r = b.getBoundingClientRect()
+      return { cx: r.left - g.left + r.width / 2, cy: r.top - g.top + r.height / 2, w: r.width + PAD * 2, h: Math.round(b.offsetHeight) || 36 }
+    }
+    const chosen = () => buttons.find((b) => b.getAttribute('aria-pressed') === 'true') ?? buttons[0]
+    let B = box(chosen())
+    const g = new Inset(group, knob, group, { width: Math.round(B.w), height: B.h, radius: B.h / 2, scale: 20, depth: 16, curvature: 2.2, chroma: 0.12, edge: 1, glow: 0, blur: 0 }, '.lq-knob')
+    const x = new Spring(B.cx, 0.05, 0.34, 0.68), y = new Spring(B.cy, 0.05, 0.34, 0.68), s = new Spring(1, 0.001)
+    let held = false, dragged = false, x0 = 0, px = 0, py = 0
+    const size = (w: number) => { if (Math.round(w) !== g.get('width') || B.h !== g.get('height')) g.set({ width: Math.round(w), height: B.h, radius: B.h / 2 }) }
+    const frame = () => {
+      const r = group.getBoundingClientRect()
+      if (held && dragged) {
+        // It stays on the filters: up and down only between the rows' centres (on a phone the row
+        // wraps), side to side only between the outer filters' centres, never over empty paper.
+        const bs = buttons.map(box)
+        y.to = clamp(py - r.top, Math.min(...bs.map((q) => q.cy)), Math.max(...bs.map((q) => q.cy)))
+        const row = bs.filter((q) => Math.abs(q.cy - y.to) < 12)
+        const xs = (row.length ? row : bs).map((q) => q.cx)
+        x.to = clamp(px - r.left, Math.min(...xs), Math.max(...xs))
+      }
+      x.step(1 / 60); y.step(1 / 60); s.step(1 / 60)
+      const speed = Math.hypot(x.v, y.v)
+      const st = clamp(speed / 2600, 0, 0.25)
+      const w = g.get('width') as number, h = g.get('height') as number
+      g.moveTo(x.x - w / 2, y.x - h / 2)
+      knob.style.transformOrigin = `${x.x.toFixed(2)}px ${y.x.toFixed(2)}px`
+      knob.style.transform = `scale(${(s.x * (1 + st)).toFixed(4)}, ${(s.x * (1 - st * 0.4)).toFixed(4)})`
+      // Glass while it is held or moving, a quiet pill once it rests.
+      knob.style.setProperty('--lq-p', clamp(Math.max((s.x - 1) / 0.15, speed / 500), 0, 1).toFixed(3))
+      return held || !(x.still && y.still && s.still)
+    }
+    const goTo = (b: HTMLElement) => { B = box(b); size(B.w); x.to = B.cx; y.to = B.cy; animate(frame) }
+    const dist = (b: HTMLElement) => { const q = box(b); return Math.hypot(q.cx - x.x, (q.cy - y.x) * 2) } // rows count double: on a phone the row wraps
+    const nearest = () => buttons.reduce((a, b) => (dist(b) < dist(a) ? b : a))
+    group.addEventListener('pointerdown', (e) => {
+      if (e.button) return
+      held = true; dragged = false; x0 = px = e.clientX; py = e.clientY; s.to = 1.15
+      const on = (e.target as Element).closest('button')
+      // Pressing the chosen filter picks the glass up; pressing another sends it there.
+      if (on && on !== chosen()) goTo(on)
+      animate(frame)
+    })
+    group.addEventListener('pointermove', (e) => {
+      if (!held) return
+      px = e.clientX; py = e.clientY
+      if (!dragged && Math.abs(px - x0) > 8) { dragged = true; group.setPointerCapture(e.pointerId); size(B.w) }
+    })
+    const up = () => {
+      if (!held) return
+      held = false; s.to = 1
+      if (dragged) { const b = nearest(); goTo(b); if (b !== chosen()) b.click() } // captured, the native click lands on the group and does nothing
+      animate(frame)
+    }
+    group.addEventListener('pointerup', up); group.addEventListener('pointercancel', up)
+    // site.js marks the choice (keys, a click, the URL); the glass follows and re-takes the labels.
+    new MutationObserver(() => { goTo(chosen()); requestAnimationFrame(() => g.reclone()) }).observe(group, { subtree: true, attributes: true, attributeFilter: ['aria-pressed'] })
+    new ResizeObserver(() => { B = box(chosen()); size(B.w); g.reclone(); x.to = B.cx; y.to = B.cy; x.snap(); y.snap(); animate(frame) }).observe(group)
+  }
+
+  // ---- The phone menu: a selection that follows the finger down the rows --------------------------------
+  // The filters' lens, turned on its side. Press a row and a pill of glass takes it; drag, and the pill
+  // follows the finger from row to row, magnifying the names it passes; let go, and the row under it
+  // opens. At rest it sits on the page the reader is on.
+  function menu(ul: HTMLElement) {
+    const items = [...ul.querySelectorAll<HTMLAnchorElement>('a')]
+    if (!items.length) return
+    const narrow = matchMedia('(max-width: 899px)')
+    ul.classList.add('lq', 'lq-menu')
+    const knob = knobOf(ul)
+    const H = 52
+    // Measured in the list's own layout, not on screen: the closed menu is drawn at half size.
+    const cy = (a: HTMLElement) => {
+      let y = a.offsetHeight / 2
+      for (let n: HTMLElement | null = a; n && n !== ul; n = n.offsetParent as HTMLElement | null) y += n.offsetTop
+      return y
+    }
+    const chosen = () => items.find((a) => a.getAttribute('aria-current') === 'page')
+    const g = new Inset(ul, knob, ul, { width: Math.max(40, ul.offsetWidth), height: H, radius: 20, scale: 20, depth: 16, curvature: 2.2, chroma: 0.12, edge: 1, glow: 0, blur: 0 }, '.lq-knob')
+    const fit = () => { g.lensInner.style.width = `${ul.offsetWidth}px`; g.lensInner.style.height = `${ul.offsetHeight}px` }
+    const c0 = chosen()
+    const y = new Spring(c0 ? cy(c0) : H / 2, 0.05, 0.34, 0.68), s = new Spring(1, 0.001), o = new Spring(c0 ? 1 : 0, 0.01, 0.2, 1)
+    let held = false, dragged = false, y0 = 0, py = 0
+    const nearest = (at: number) => items.reduce((a, b) => (Math.abs(cy(b) - at) < Math.abs(cy(a) - at) ? b : a))
+    const frame = () => {
+      if (held && dragged) {
+        const ys = items.map(cy)
+        y.to = clamp(py - ul.getBoundingClientRect().top, Math.min(...ys), Math.max(...ys))
+      }
+      y.step(1 / 60); s.step(1 / 60); o.step(1 / 60)
+      const st = clamp(Math.abs(y.v) / 2600, 0, 0.2)
+      g.moveTo(0, y.x - H / 2)
+      knob.style.transformOrigin = `${(ul.offsetWidth / 2).toFixed(2)}px ${y.x.toFixed(2)}px`
+      knob.style.transform = `scale(${(s.x * (1 - st * 0.4)).toFixed(4)}, ${(s.x * (1 + st)).toFixed(4)})`
+      knob.style.opacity = clamp(o.x, 0, 1).toFixed(3)
+      knob.style.setProperty('--lq-p', clamp(Math.max((s.x - 1) / 0.04, Math.abs(y.v) / 500), 0, 1).toFixed(3))
+      return held || !(y.still && s.still && o.still)
+    }
+    const rest = () => { const c = chosen(); o.to = c ? 1 : 0; if (c) y.to = cy(c) }
+    ul.addEventListener('pointerdown', (e) => {
+      if (e.button || !narrow.matches) return
+      held = true; dragged = false; y0 = py = e.clientY; s.to = 1.04
+      const at = cy(nearest(py - ul.getBoundingClientRect().top))
+      if (o.x < 0.5) { y.x = y.to = at; y.v = 0 } else y.to = at // unseen, it appears under the finger; seen, it glides there
+      o.to = 1
+      animate(frame)
+    })
+    ul.addEventListener('pointermove', (e) => {
+      if (!held) return
+      py = e.clientY
+      if (!dragged && Math.abs(py - y0) > (e.pointerType === 'touch' ? 16 : 8)) { dragged = true; ul.setPointerCapture(e.pointerId) } // a finger wobbles more than a mouse
+    })
+    const up = (e: PointerEvent) => {
+      if (!held) return
+      held = false; s.to = 1
+      if (dragged && e.type === 'pointerup') { const a = nearest(py - ul.getBoundingClientRect().top); y.to = cy(a); a.click() } // the link under the finger, not under the glass still catching up; captured, the native click lands on the list
+      else if (dragged || !(e.target as Element).closest?.('a')) rest()
+      animate(frame)
+    }
+    ul.addEventListener('pointerup', up); ul.addEventListener('pointercancel', up)
+    new ResizeObserver(() => {
+      const w = Math.max(40, ul.offsetWidth)
+      if (w !== g.get('width')) g.set({ width: w })
+      g.reclone(); fit(); rest(); y.snap(); o.snap(); animate(frame)
+    }).observe(ul)
+    // Shut, it goes back to the page the reader is on, ready for the next opening.
+    new MutationObserver(() => { if (!document.documentElement.classList.contains('menu-open') && !held) { rest(); y.snap(); o.snap(); animate(frame) } }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+    fit(); animate(frame)
+  }
+
+  const start = () => {
+    if (!('ResizeObserver' in window)) return
+    const all = (q: string) => document.querySelectorAll<HTMLElement>(q)
+    // Live glass: what floats over the page. The capsules take a tight rim, the menus a deeper one.
+    if (LIVE) document.documentElement.classList.add('gl-live')
+    for (const el of all('.bar .name, .bar nav > ul, .bar .menu, .seg, .toc, .clip-btn, .hint, .zoom, .pan button')) refract(el, { bezel: 12, scale: 20 })
+    for (const el of all('.bar .sub, .bar nav')) refract(el, { bezel: 18, scale: 28 })
+    // Every slider: About's reading size and each case's mark scrubber.
+    for (const el of all('.rs-in, .draw-scrub')) slider(el)
+    for (const el of all('.filters, .views')) filters(el)
+    const nav = document.querySelector<HTMLElement>('.bar nav > ul')
+    if (nav) menu(nav)
+    for (const el of all('.button, .v-press, .proto-load, .clip-btn')) button(el)
+    for (const el of all('.bar .menu, .v-nav button:not(.v-press), .pan button, .zoom button')) button(el, 1.15)
+  }
+  // site.js sets the slider and the filters on DOMContentLoaded; its listener was added first.
+  if (document.readyState === 'loading') addEventListener('DOMContentLoaded', start, { once: true })
+  else start()
+</script>

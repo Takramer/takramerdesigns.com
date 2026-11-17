@@ -1,0 +1,185 @@
+---
+import Base from '../layouts/Base.astro'
+import Ending from '../components/Ending.astro'
+import Arrow from '../components/Arrow.astro'
+import { SITE } from '../data/site'
+import { pic, source } from '../lib/img'
+import items from '../data/one-offs.json'
+
+// One-offs (10-copy 4.2): the pieces too small for a case study, each in its own proportions, in a
+// catalogue by kind. The data decides everything here: its order is the page's order (client work
+// first, then concept work), each piece's `kind` is its section, in the order the kinds first appear,
+// and `client` says whether it was made for someone. On a wide screen the pieces also lie on the light
+// table, a plane to drag around (07 5.6; site.js); Grid is the view below 900 px, under reduced motion
+// and without script. A press opens the viewer, which shows a piece at no more than half its pixel
+// width, so a 2x screen gets every pixel and none is blown up.
+const pieces = await Promise.all(items.map(async (it) => {
+  const s = source(`one-offs/${it.file}`)
+  const [t, f] = await Promise.all([pic(`one-offs/${it.file}`, [360, 640, 960]), pic(`one-offs/${it.file}`, [1200, 2400])])
+  return { ...it, w: s.width, h: s.height, ar: +(s.width / s.height).toFixed(4), t, f }
+}))
+type Piece = (typeof pieces)[number]
+const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+// A set (N10): pieces that share one concept show as one tile, where its first piece sat. The
+// viewer steps through the set; on the light table its pieces sit together under one label.
+const NOUN: Record<string, string> = { Megapack: 'sales deck slides', Cybercab: 'ads', Morningstar: 'website screens', 'American Supremacy': 'web and social pieces', NextWork: 'share images', 'Lunchtable Sports': 'logos', 'Polar Plunge': 'apparel pieces', 'Radix Church': 'social pieces', Fruit: 'illustrations' }
+// I9 (review round 6): the pieces made for a press, which the viewer can split into their plates.
+const PRINT = /Poster|Newspaper|Book jacket|Signage|Magazine|Zine/
+type Tile = { set?: string, label: string, client: boolean, ps: Piece[] }
+const kinds: { name: string, k: string, tiles: Tile[], n: number, client: number }[] = []
+for (const p of pieces) {
+  let kd = kinds.find((x) => x.name === p.kind)
+  if (!kd) kinds.push(kd = { name: p.kind, k: slug(p.kind), tiles: [], n: 0, client: 0 })
+  kd.n++; if (p.client) kd.client++
+  const t = p.set && kd.tiles.find((x) => x.set === p.set)
+  if (t) t.ps.push(p)
+  else kd.tiles.push({ set: p.set, label: p.type, client: p.client, ps: [p] })
+}
+for (const kd of kinds) for (const t of kd.tiles) if (t.set) t.label = `${t.client ? '' : 'Concept · '}${t.ps.length} ${NOUN[t.set] ?? 'pieces'}`
+const nClient = pieces.filter((p) => p.client).length
+const said = (n: number, what: string) => `${n} ${n === 1 ? 'piece' : 'pieces'}, ${what}.`
+const FILTERS: [string, string, number][] = [['all', 'All', pieces.length], ...kinds.map((kd) => [kd.k, kd.name, kd.n] as [string, string, number])]
+const WHO: [string, string, number][] = [['client', 'Client work', nClient], ['concept', 'Concept', pieces.length - nClient]]
+const tagsOf = (ps: Piece[]) => [...new Set(ps.map((p) => `${slug(p.kind)} ${p.client ? 'client' : 'concept'}`).join(' ').split(' '))].join(' ')
+// The filters hide what does not match before the first frame: one rule per filter, from the data.
+const hide = `<style>${[...FILTERS.slice(1), ...WHO].map(([k]) => `html[data-filter="${k}"] .board :is(.kind, .row > li):not([data-k~="${k}"])`).join(',\n')} { display: none; }</style>`
+// Justified rows (site.css): a tile is as wide as its proportions at the row's height, so sizes asks
+// for that width, a quarter over for the row's stretch: about 400 px for a portrait piece at a desk,
+// not the 2400 px file. On a phone a row holds two square pieces (--rh there is about half the column).
+const sizes = (ar: number) => `(min-width: 1280px) ${Math.round(ar * 400)}px, (min-width: 900px) ${Math.round(ar * 350)}px, (min-width: 600px) ${Math.round(ar * 275)}px, ${Math.min(100, Math.round(ar * 56))}vw`
+// Justified rows (site.css): the browser breaks the rows (flex-wrap) and stretches each across the
+// full width. Each tile starts at a share k of the row's width times its proportions, so the breaks
+// come out the same at any width; here, per kind and per band of screen widths, k is the share whose
+// rows stand nearest the band's target height (about 380 px on a 1920 screen, 320 at a 1440 desk,
+// 280, 220, half a phone's width), found by laying the rows out as flex-wrap will. On a phone no tile
+// may be narrower than about a third of the row, so a row holds two pieces, or one wide one. A last row that nearly fills is stretched
+// flush; a shorter one keeps the height (--t, the ::after that takes its spare width).
+// [nominal row width, narrowest, widest, target height as a share of the width, narrowest tile]
+const BANDS = [[1700, 1488, 1776, 0.215, 0], [1328, 1168, 1487, 0.24, 0], [1100, 820, 1199, 0.255, 0], [700, 536, 835, 0.31, 0], [358, 288, 567, 0.5, 0.36]]
+const lines = (ars: number[], W: number, k: number) => {
+  const g = W >= 1776 ? 24 : 16, out: number[][] = [[]]
+  let sum = 0
+  for (const a of ars) {
+    const l = out.at(-1)!, w = a * k * W
+    if (l.length && sum + g + w > W) { out.push([a]); sum = w } else { sum += (l.length ? g : 0) + w; l.push(a) }
+  }
+  return out
+}
+const tune = (ars: number[]) => BANDS.map(([W, lo, hi, t, m]) => {
+  let best = { cost: Infinity, k: t, tail: true }
+  for (let k = t * 0.6; k <= t * 1.3; k += t / 400) {
+    const L = lines(ars, W, k), shape = L.map((l) => l.length).join()
+    if (L.some((l) => l.some((a) => (a * (1 - 16 * (l.length - 1) / W)) / l.reduce((x, y) => x + y, 0) < m))) continue
+    // A break that moves between the band's narrowest and widest screen costs as much as a bad row.
+    let cost = [lo, hi].filter((w) => lines(ars, w, k).map((l) => l.length).join() !== shape).length * 4
+    // Every row but the last is stretched flush; the last is too when that keeps it near the target,
+    // and otherwise stays at the target height with the spare width at its end.
+    const rows = L.map((l) => { const sa = l.reduce((a, b) => a + b, 0), gaps = 16 * (l.length - 1); return { n: l.length, h: (1 - gaps / W) / sa, fill: (sa * k * W + gaps) / W } })
+    const end = rows.pop()!
+    cost += rows.reduce((c, r) => c + r.n * ((r.h - t) / t) ** 2, 0)
+    const flush = end.n * ((end.h - t) / t) ** 2, short = end.n * ((k - t) / t) ** 2 + (1 - end.fill) * (end.n === 1 && rows.length && !m ? 3 : 1.5) // a lone piece left at the end of a wide row reads as a leftover
+    const tail = !(rows.length || end.fill > 0.6) || short < flush
+    cost += tail ? short : flush
+    if (cost < best.cost) best = { cost, k: +k.toFixed(4), tail }
+  }
+  return best
+})
+const rowStyle = (tiles: Tile[]) => tune(tiles.map((t) => t.ps[0].ar)).map((b, i) => `--k${i + 1}: ${b.k}; --t${i + 1}: ${b.tail ? '""' : 'none'}`).join('; ')
+let shown = 0 // the first screen's tiles load at once, the rest as they near the window
+const list = {
+  '@type': 'ItemList',
+  '@id': `${SITE}/one-offs#list`,
+  name: 'One-offs',
+  numberOfItems: pieces.length,
+  itemListElement: pieces.map((p, i) => ({ '@type': 'ListItem', position: i + 1, name: p.title })),
+}
+---
+<Base
+  title="One-offs | TAKramer Designs"
+  description={`Ads, posters, covers and posts by Thomas Kramer, ${pieces.length} in all, too small for a full case study. Pieces made without a client say Concept.`}
+  page="one-offs"
+  image="one-offs/01.jpg"
+  graph={[list]}
+>
+  <Fragment set:html={hide} />
+  <div class="oo">
+  <div class="w page-head">
+    <p class="crumb"><a class="up" href="/projects"><Arrow back /><span>Work</span></a></p>
+    <h1 class="title"><span class="t"><Ending text="One-offs" /></span></h1>
+    <p class="intro-line">Ads, posters, covers and posts, {pieces.length} in all, too small for a full case study. Pieces made without a client say Concept.</p>
+  </div>
+  {/* The view controls sit together: what to show, then how. Without script there are no filters. */}
+  <div class="w oo-ctl">
+    <div class="seg"><div class="filters" role="group" aria-label="Filter pieces">
+      {FILTERS.map(([k, label, n]) => (
+        <button type="button" data-f={k} data-msg={said(n, k === 'all' ? 'all kinds' : label)} aria-pressed={k === 'all' ? 'true' : 'false'}><span>{label}</span><span class="num">{n}</span></button>
+      ))}
+      <span class="f-rule" aria-hidden="true"></span>
+      {WHO.map(([k, label, n]) => (
+        <button type="button" data-f={k} data-msg={said(n, label)} aria-pressed="false"><span>{label}</span><span class="num">{n}</span></button>
+      ))}
+    </div></div>
+    <div class="seg vs" hidden><div class="views" role="group" aria-label="View">
+      <button type="button" data-v="table" aria-pressed="false">Table</button>
+      <button type="button" data-v="grid" aria-pressed="true">Grid</button>
+    </div></div>
+  </div>
+  <p class="sr" role="status" data-filter-status></p>
+  <div class="w board" data-view="grid">
+    {/* Lighthouse, 5 November: the table took over 20 ms after the first paint and moved the whole board
+        (layout shift 0.64). Pick the view before the board paints; site.js then wires it up. */}
+    <script is:inline>(() => { let v = null; try { v = sessionStorage.getItem('oo-view') } catch {} document.currentScript.parentElement.dataset.view = matchMedia('(min-width: 900px)').matches && !matchMedia('(prefers-reduced-motion: reduce)').matches && v !== 'grid' ? 'table' : 'grid' })()</script>
+    <div class="plane">
+    <div class="pieces">
+      {kinds.map((kd) => (
+        <section class="kind" data-k={tagsOf(kd.tiles.flatMap((t) => t.ps))} aria-labelledby={`k-${kd.k}`}>
+          <h2 class="kh" id={`k-${kd.k}`} data-vt={`oo-k-${kd.k}`}><span>{kd.name}</span> <span class="num" data-all={kd.n} data-client={kd.client} data-concept={kd.n - kd.client}>{kd.n}</span></h2>
+          <ul class="row" style={rowStyle(kd.tiles)}>
+            {kd.tiles.map((t) => { const i = shown++, p0 = t.ps[0]; return t.set ? (
+              <li class:list={['set', t.ps.length > 6 && 'deck']} data-k={tagsOf(t.ps)} data-vt={`oo-${slug(t.set)}`} style={`--ar: ${p0.ar}`}>
+                <p class="pc sc"><span class="n">{t.set}</span><span class="c">{t.label}</span></p>
+                <div class="set-ps">
+                  {t.ps.map((p, j) => (
+                    <div class="tile" style={`--ar: ${p.ar}`}>
+                      <a class="piece" href={p.f.src} data-srcset={p.f.srcset} data-w={p.w} data-h={p.h} data-n={p.title} data-c={p.type} data-print={PRINT.test(p.type) ? '' : undefined}><span class="tags" aria-hidden="true">{j === 0 && <span class="set-n">{t.ps.length}</span>}{!p.client && <span class="tag">Concept</span>}</span><span class="sr">{t.set}, {j + 1} of {t.ps.length}: </span><img src={p.t.src} srcset={p.t.srcset} sizes={sizes(p.ar)} alt={p.alt} width={p.t.width} height={p.t.height} loading={i < 6 && j === 0 ? undefined : 'lazy'} decoding="async" /></a>
+                      <p class="pc"><span class="n">{p.title}</span><span class="c">{p.type}</span></p>
+                    </div>
+                  ))}
+                </div>
+              </li>
+            ) : (
+              <li class="one" data-k={tagsOf(t.ps)} data-vt={`oo-${p0.file.replace('.jpg', '')}`} style={`--ar: ${p0.ar}`}>
+                <a class="piece" href={p0.f.src} data-srcset={p0.f.srcset} data-w={p0.w} data-h={p0.h} data-n={p0.title} data-c={p0.type} data-print={PRINT.test(p0.type) ? '' : undefined}>{!p0.client && <span class="tags" aria-hidden="true"><span class="tag">Concept</span></span>}<img src={p0.t.src} srcset={p0.t.srcset} sizes={sizes(p0.ar)} alt={p0.alt} width={p0.t.width} height={p0.t.height} loading={i < 6 ? undefined : 'lazy'} decoding="async" /></a>
+                <p class="pc"><span class="n">{p0.title}</span><span class="c">{p0.type}</span></p>
+              </li>
+            ) })}
+          </ul>
+        </section>
+      ))}
+    </div>
+    </div>
+    <p class="hint" aria-hidden="true">Drag to look around.</p>
+    <p class="zoom">
+      <button type="button" data-zoom="1" aria-label="Zoom in"><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" focusable="false"><path d="M1 6H11M6 1V11" fill="none" stroke="currentColor" stroke-width="1.5" /></svg></button>
+      <span aria-hidden="true">100%</span>
+      <button type="button" data-zoom="-1" aria-label="Zoom out"><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" focusable="false"><path d="M1 6H11" fill="none" stroke="currentColor" stroke-width="1.5" /></svg></button>
+    </p>
+  </div>
+  </div>
+  <dialog class="viewer" aria-labelledby="v-n" tabindex="-1">
+    <div class="v-top">
+      <p class="v-count"><span class="v-s"></span><span class="sr">Piece </span><span class="num v-i">01</span><span class="v-pt" aria-hidden="true"></span><span class="sr"> of </span><span class="num v-t">{shown}</span></p>
+      <p class="v-nav">
+        <button type="button" data-go="-1" aria-label="Previous piece"><b class="ic prev" aria-hidden="true"><i></i><i></i><i></i></b><span>Previous</span></button>
+        <button type="button" data-go="1" aria-label="Next piece"><span>Next</span><b class="ic next" aria-hidden="true"><i></i><i></i><i></i></b></button>
+        <button type="button" data-close><span>Close</span><b class="ic x" aria-hidden="true"><i></i><i></i><i></i></b></button>
+      </p>
+    </div>
+    <div class="v-stage"></div>
+    {/* Press check sits on the caption's row, not in the cramped top bar (Thomas, 8 November). */}
+    <div class="v-cap">
+      <p class="v-cap-t" aria-live="polite"><span class="c"></span><span class="n" id="v-n"></span></p>
+      <button type="button" class="v-press" aria-pressed="false" hidden><span>Press check</span></button>
+    </div>
+  </dialog>
+</Base>

@@ -1,0 +1,103 @@
+---
+import SunClock from './SunClock.astro'
+// "Charlotte now": the sun map with a line above and a line below. Above: Charlotte's time, and the
+// condition with its temperature beside a 7 by 5 icon of squares (and the wind, only when it is strong).
+// Below: today's sunrise and sunset, and the moon as a disc of squares with its phase in words. Time,
+// sun and moon are the clock's own sums for Charlotte; the condition is this site's /api/wx, and when
+// that has nothing the line simply leaves it out. The group's label repeats every value in words.
+// map={false} keeps the lines and drops the map (/contact, which shows the map large). On a phone only
+// the top line shows, with the next sunrise or sunset added to it.
+const { map = true } = Astro.props as { map?: boolean }
+---
+<div class:list={['now', { 'now-ro': !map }]} role="group" aria-label="Charlotte now">
+  <p class="now-l now-top" hidden>
+    <span><span class="now-q">CLT</span> <time class="now-t"></time></span>
+    <span class="now-ev now-q"></span>
+    <span class="now-wx" hidden><svg aria-hidden="true" width="21" height="15" viewBox="0 0 21 15"></svg><span></span></span>
+  </p>
+  <SunClock read={false} />
+  <p class="now-l now-bot" hidden>
+    <span class="now-sun"></span>
+    <span class="now-moon"><svg aria-hidden="true" width="21" height="21" viewBox="0 0 21 21"></svg><span></span></span>
+  </p>
+</div>
+
+<style>
+  .now { color: var(--ink); --sc-quiet: var(--dim); --sc-track: color-mix(in srgb, var(--ink) 40%, transparent); }
+  /* The map fills the link columns in steps of 90 px, so each of its 90 cells stays on whole pixels
+     (4 px at 360, 7 at 630, 8 at 720); a 358 px column lets the 360 out a pixel each side. */
+  .now { --nw: clamp(360px, round(down, 100%, 90px), 720px); }
+  .now :global(.sunclock) { width: var(--nw); max-width: none; margin-inline: min(0px, (100% - 360px) / 2); }
+  .now-l { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: var(--nw); max-width: 100%; font-size: 0.875rem; line-height: 1.25rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .now-l[hidden], .now-wx[hidden] { display: none; }
+  .now-top { margin-bottom: 10px; }
+  .now-bot { margin-top: 10px; color: var(--dim); }
+  .now-q { color: var(--dim); }
+  .now-ev { display: none; }
+  .now-wx, .now-moon { display: inline-flex; align-items: center; gap: 8px; }
+  .now svg { display: block; flex: none; }
+  .now :global(.k) { fill: currentColor; }
+  .now :global(.d) { fill: color-mix(in srgb, currentColor 60%, transparent); }
+  .now-moon { color: var(--dim); }
+  .now-moon svg { color: var(--ink); }
+  .now-ro :global(.sunclock) { display: none; }
+  .now-ro .now-top { margin-bottom: 0; }
+  /* A phone: one line, time, the next sunrise or sunset, the condition. */
+  @media (max-width: 599px) {
+    .now :global(.sunclock), .now-bot { display: none !important; }
+    .now-top { margin-bottom: 0; justify-content: flex-start; gap: 20px; }
+    .now-ev { display: inline; }
+  }
+</style>
+
+<script>
+  import { sky, weather, pin, say, moonName, near } from './sky'
+  // A 7 by 5 matrix per condition, on a 3 px pitch.
+  const ICON: Record<string, string> = {
+    clear: '.#.#.#. ..###.. .#####. ..###.. .#.#.#.', cloudy: '...##.. ..####. .###### ####### .......',
+    rain: '..###.. .#####. ####### .#.#.#. #.#.#..', storm: '..###.. .#####. ####### ...##.. ..##...',
+    snow: '.#...#. ..#.#.. #..#..# ..#.#.. .#...#.', fog: '####### ....... .###### ....... #####..',
+    wind: '#####.. .....#. ######. ......# ####.#.',
+  }
+  const sq = (c: number, r: number, cls: string) => cls === 'd' ? `<rect class="d" x="${c * 3 + 1}" y="${r * 3 + 1}" width="1" height="1"/>` : `<rect class="k" x="${c * 3}" y="${r * 3}" width="2" height="2"/>`
+  for (const el of document.querySelectorAll<HTMLElement>('.now[role=group]')) {
+    const clock = el.querySelector<HTMLElement>('.sunclock')!, d = clock.dataset, $ = (s: string) => el.querySelector<HTMLElement>(s)!
+    const s = sky()
+    pin(s)
+    // The moon: 7 by 7 squares, lit on the side its phase says (waxing on the right), the rest dots.
+    let m = ''
+    const k = Math.cos(2 * Math.PI * s.phase), wax = s.phase < 0.5
+    for (let r = 0; r < 7; r++) for (let c = 0; c < 7; c++) {
+      const x = (c - 3) / 3.5, y = (r - 3) / 3.5
+      if (x * x + y * y > 1.05) continue
+      const e = Math.sqrt(Math.max(0, 1 - y * y))
+      m += sq(c, r, (wax ? x > e * k : x < -e * k) ? 'k' : 'd')
+    }
+    $('.now-moon svg').innerHTML = m
+    const moon = moonName(s.phase)
+    $('.now-moon span').textContent = moon
+    let wx = ''
+    // Everything written from what the clock last drew, so the words never disagree with the map.
+    const read = () => {
+      if (!d.now) return
+      $('.now-t').textContent = d.now; $('.now-t').setAttribute('datetime', d.now)
+      $('.now-ev').textContent = `Sun${d.next} ${d.nextAt}`
+      $('.now-sun').textContent = `Sunrise ${d.rise} · Sunset ${d.set}`
+      el.setAttribute('aria-label', `Charlotte now: ${d.now}${wx}, sunrise ${d.rise}, sunset ${d.set}, ${moon.toLowerCase()}`)
+      el.querySelectorAll<HTMLElement>('.now-l').forEach((l) => (l.hidden = false))
+    }
+    new MutationObserver(read).observe(clock, { attributeFilter: ['data-now'] })
+    read()
+    near(el, () => weather().then((w) => {
+      if (!w) return
+      const t = say(w), strong = w.windMph !== null && w.windMph >= 19 && w.wx !== 'wind'
+      let ic = ''
+      ICON[w.wx].split(' ').forEach((row, r) => [...row].forEach((ch, c) => { if (ch === '#') ic += sq(c, r, 'k') }))
+      $('.now-wx svg').innerHTML = ic
+      $('.now-wx span').textContent = [t.name, t.temp].filter(Boolean).join(' ') + (strong ? `, ${t.wind}` : '')
+      $('.now-wx').hidden = false
+      wx = `, ${t.name.toLowerCase()}${t.temp ? ' ' + t.temp : ''}${strong || w.wx === 'wind' ? ', ' + t.wind : ''}`
+      read()
+    }))
+  }
+</script>

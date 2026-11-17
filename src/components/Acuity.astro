@@ -1,0 +1,346 @@
+---
+import Ending from './Ending.astro'
+import Arrow from './Arrow.astro'
+// Read it at 20/280: the same boarding pass twice, set two ways, and a slider that takes the reader's
+// eyesight from 20/20 past 20/200, where legal blindness starts, to 20/280, where Thomas sees (his own
+// figure, 11 November). One SVG filter blurs both cards' live
+// text (it stays real, selectable and resizable); the script below only moves the filter's numbers.
+// The pass is a plain example (11 November: no medical instructions): no real airline or passenger. Without
+// script the cards stand sharp and the slider and readout are not drawn (html.js comes from
+// site.js in <head>, so no shift).
+
+// The two settings. The right card takes the site's own tokens; these mirror site.css for the ratio.
+const WEB = { ground: '#FFFFFF', ink: '#9A9A9A', soft: '#B0B0B0', line: '#E6E6E6', size: 14 } // the site's 14 px floor
+const HIS = { ground: '#F6F6F3', ink: '#141414', size: 48 } // --field, --carbon; its smallest type, 3rem
+// WCAG 2 contrast, cut (not rounded) to one decimal, so the printed figure never flatters.
+const lum = (hex: string) => {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+const ratio = (a: string, b: string) => {
+  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x)
+  return `${(Math.floor(((hi + 0.05) / (lo + 0.05)) * 10) / 10).toFixed(1)}:1`
+}
+// Snellen lines, placed on the slider by logMAR (log10 of the denominator over 20, times 1000): the
+// scale the eye chart itself steps in, so 20/100 to 20/200 takes as much room as 20/20 to 20/40.
+const STOPS = [20, 40, 70, 100, 200, 280]
+// What each line means, one checked fact each (11 November):
+// 20/20: "The phrase 20/20 vision means normal vision" (American Academy of Ophthalmology,
+//   https://www.aao.org/eye-health/tips-prevention/what-does-20-20-vision-mean).
+// 20/40: "40 out of the 51 jurisdictions require 20/40 (6/12) for unrestricted driving" (E. Peli,
+//   "Low vision driving in the USA", CE Optometry 5(2), 2002, https://pelilab.partners.org/papers/Driving_USA.pdf).
+// 20/70 and 20/100: ICD-11 9D90 (WHO). Mild impairment is worse than 20/40 down to 20/70; moderate is
+//   worse than 20/70 down to 20/200 (https://icd.who.int/browse/2024-01/mms/en, code 9D90).
+// 20/200: 20/200 or less in the better eye with a correcting lens is blindness under the Social
+//   Security Act, sections 216(i)(1) and 1614(a)(2) (https://www.ssa.gov/OP_Home/ssact/title02/0216.htm).
+const SAY: Record<number, string> = { 20: 'Normal sight', 40: 'Driving line in most states', 70: 'Mild impairment', 100: 'Moderate impairment', 200: 'Legal blindness, U.S.', 280: 'Thomas' }
+const AT = STOPS.map((d) => Math.round(1000 * Math.log10(d / 20)))
+---
+<section class="ac" aria-labelledby="ac-h" data-acuity>
+  <div class="w ac-in">
+    <div class="ac-text">
+      <h2 id="ac-h" class="work-h ac-h"><Ending text="Read it at 20/280." /></h2>
+      <p class="lede ac-lead">In the United States, legal blindness starts at 20/200 with glasses on. Thomas sees at 20/280. He sets what matters large and dark and leaves out the rest, so a page still reads at that line.</p>
+    </div>
+
+    <div class="ac-figs">
+      <figure class="ac-fig">
+        <div class="ac-card ac-web" style={`--wg: ${WEB.ground}; --wi: ${WEB.ink}; --ws: ${WEB.soft}; --wl: ${WEB.line}`}>
+          <p class="k">Northside Air · Confirmation K7Q2LM</p>
+          <p class="n">J. Smith · Group 3 · Zone B</p>
+          <p class="t">Flight 482, Charlotte to Boston</p>
+          <p class="d">Boarding begins at 4:10 PM from gate B12.</p>
+          <p class="n">Seat 14A · Departs 4:40 PM · Doors close 4:25 PM</p>
+          <p class="n">Gates can change. Check the screens.</p>
+        </div>
+        <figcaption><span class="cn">A common pale, small setting</span><span class="cm">{ratio(WEB.ink, WEB.ground)} contrast, {WEB.size} px</span></figcaption>
+      </figure>
+      <figure class="ac-fig">
+        {/* Set for 20/280: where, when and which seat, in that order, each as large as the card
+            allows; the rest stays on the full pass. */}
+        <div class="ac-card ac-his">
+          <p class="g">Gate B12</p>
+          <p class="v">Boards 4:10</p>
+          <p class="l">Seat 14A</p>
+        </div>
+        <figcaption><span class="cn">How Thomas sets it</span><span class="cm">{ratio(HIS.ink, HIS.ground)} contrast, {HIS.size} px</span></figcaption>
+      </figure>
+    </div>
+
+    <div class="ac-ctl">
+      <p class="ac-read" aria-hidden="true"><span class="n">20/20</span><span class="ac-say">Normal sight</span></p>
+      <div class="ac-slide">
+        {/* The site's slider (Liquid.astro gives .rs-in its glass thumb). Not .rs: site.js takes the
+            first .rs on a page for About's reading size. */}
+        <label class="rs-b ac-b"><span class="sr">Eyesight</span><span class="rs-in"><span class="rs-track" aria-hidden="true"><i></i></span><input type="range" min="0" max={AT.at(-1)} step="1" value="0" aria-valuetext="20/20" /></span></label>
+        <ol class="ac-ticks" aria-hidden="true">
+          {STOPS.map((d, i) => <li class:list={{ me: d === 280 }} style={`--p: ${AT[i] / AT.at(-1)!}`} data-v={AT[i]} data-say={SAY[d]}><span>20/{d}<em>{SAY[d]}</em></span></li>)}
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  {/* The vision model, one filter for both cards. Every number here is set by the script per frame:
+      blur (the eye's focus), then glare (the bright areas, blurred wider and screened back over at a
+      fraction of their light), then a little contrast lost toward white. linearRGB: light adds in
+      linear terms, so a blurred dark stroke on white thins out as it does in an eye. */}
+  <svg class="ac-svg" width="0" height="0" aria-hidden="true" focusable="false">
+    <filter id="ac-eye" x="-0.1" y="-0.1" width="1.2" height="1.2" color-interpolation-filters="linearRGB">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="0" result="focus" />
+      <feComponentTransfer in="SourceGraphic" result="bright">
+        <feFuncR type="linear" slope="2.5" intercept="-1.5" />
+        <feFuncG type="linear" slope="2.5" intercept="-1.5" />
+        <feFuncB type="linear" slope="2.5" intercept="-1.5" />
+      </feComponentTransfer>
+      <feGaussianBlur in="bright" stdDeviation="0" result="spread" />
+      <feComponentTransfer in="spread" result="veil"><feFuncA type="linear" slope="0" /></feComponentTransfer>
+      <feBlend in="veil" in2="focus" mode="screen" result="lit" />
+      <feComponentTransfer in="lit">
+        <feFuncR type="linear" slope="1" intercept="0" />
+        <feFuncG type="linear" slope="1" intercept="0" />
+        <feFuncB type="linear" slope="1" intercept="0" />
+      </feComponentTransfer>
+    </filter>
+  </svg>
+</section>
+
+<style>
+  /* A band of stone across the page. --ground follows it, so the slider's glass lens shows stone. */
+  /* The page's section rhythm on both sides (48 + 48 around a rule elsewhere), not the home page's 160. */
+  .ac { margin-top: 48px; padding-block: 96px; background: var(--mat); --ground: var(--mat); }
+  .ac-in { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); column-gap: var(--g); align-items: start; }
+  .ac-svg { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+  /* The words: title, lead and the onward link, in the left seven columns from 1280 up. */
+  .ac-text { grid-column: 1 / 8; grid-row: 1 / 3; }
+  .ac-h { text-box: trim-start cap alphabetic; }
+  .ac-lead { margin-top: 32px; }
+  /* A standing 1 px rule that thickens on hover, with the arrow, in a 44 px target (as home's .read). */
+  .ac-more { margin-top: 32px; }
+  .ac-more a { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; margin-block: -10px; text-decoration: none; -webkit-tap-highlight-color: transparent; }
+  .ac-more span { line-height: 1.5rem; background: linear-gradient(currentColor, currentColor) no-repeat 0 100% / 100% 1px; transition: background-size 240ms var(--ease); }
+  .ac-more a:is(:hover, :focus-visible) span { background-size: 100% 2px; }
+  .ac-more :global(.arr) { flex: none; width: 20px; height: 14px; }
+  :global(.motion) .ac-more a:is(:hover, :focus-visible) :global(.arr path) { animation: pass-on var(--vt) var(--ease); }
+
+  /* The cards, eight columns each, one box size: the same content in the same space, set two ways. */
+  .ac-figs { grid-column: 9 / 25; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--g); }
+  .ac-fig { display: flex; flex-direction: column; }
+  .ac-card { flex: 1; }
+  figcaption { margin-top: 16px; }
+  .cn { display: block; font-size: 1rem; line-height: 1.5rem; }
+  .cm { display: block; font-size: 0.875rem; line-height: 1.25rem; color: var(--graphite); font-variant-numeric: tabular-nums; }
+
+  /* A common pale, small setting: small, pale grey on white, a hairline, little air. 14 px, the site's
+     own floor, so the point is the grey and the crowding, not a size this site never prints. px, not
+     rem, as such pages are. */
+  .ac-web { display: flex; flex-direction: column; padding: 24px; background: var(--wg); outline: 1px solid var(--wl); outline-offset: -1px; color: var(--wi); font: 400 14px/18px var(--sans); }
+  .ac-web .k, .ac-web .n { color: var(--ws); }
+  .ac-web .k { text-transform: uppercase; letter-spacing: 0.04em; }
+  .ac-web .n + .t { margin-top: 8px; }
+  .ac-web .k + .n { margin-top: 2px; }
+  .ac-web .d { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--wl); }
+  .ac-web .n { margin-top: 8px; }
+
+  /* How Thomas sets it for 20/280: carbon on paper, the dose, then when, then how, in falling sizes
+     and that reading order; one carbon rule under the dose. Nothing under 48 px (at 28 px words
+     blurred away). rem and cqi, so it follows the reader's own size and never runs past a phone's card. */
+  .ac-his { display: flex; flex-direction: column; justify-content: space-between; gap: 16px; padding: 24px; background: var(--field); color: var(--carbon); container-type: inline-size; }
+  .ac-his .g { padding-bottom: 20px; border-bottom: 1px solid var(--carbon); font: 400 min(7rem, 27cqi)/1 var(--display); line-height: round(up, 0.91em, 4px); letter-spacing: var(--tr-endless); }
+  .ac-his .v { font: 400 min(4.5rem, 14.5cqi)/1 var(--display); line-height: round(up, 1em, 4px); letter-spacing: var(--tr-endless); }
+  .ac-his .l { font: 500 min(3rem, 13cqi)/1 var(--sans); line-height: round(up, 1.1em, 4px); letter-spacing: -0.02em; }
+
+  /* The readout under the first card, the verdict under the second, the slider across both. */
+  .ac-ctl { grid-column: 9 / 25; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--g); align-items: end; margin-top: 56px; }
+  :global(html:not(.js)) .ac-ctl { display: none; }
+  .ac-read { font: 400 6rem/1 var(--mono); line-height: round(up, 1em, 4px); letter-spacing: -0.03em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .ac-read .n { display: block; }
+  /* Under 900 the phrases leave the track: the readout carries the current line's, one line held open. */
+  .ac-say { display: none; margin-top: 12px; min-height: 1.5rem; font: 400 1rem/1.5rem var(--sans); letter-spacing: 0; color: var(--carbon); }
+  /* Its three lines are held open before it speaks, so nothing moves when it does. */
+  /* Bottom-aligned, it sits on the readout's baseline: Geist Mono at 96 on 96 ends 5 px further below
+     its baseline than Endless at 32 on 36 (measured; Safari's last-baseline grid alignment adds a row). */
+  .ac-slide { grid-column: 1 / -1; margin-top: 32px; }
+  /* Above the ticks, so the thumb covers the tick it rests on. */
+  .ac-b.rs-b { position: relative; z-index: 1; max-width: none; }
+  /* The ticks stand under the track at the thumb's centre for each line: the glass thumb rests 39.68
+     px wide (64 x 0.62, Liquid.astro), so its centre runs from 19.84 px in to 19.84 px from the end. */
+  /* Every label is centred on its tick, the last one too: centred, 20/280 passes the track's end by
+     6 px at most, inside the page's margin. The tick is 1 px at a whole px, so the label's centre is
+     its left edge plus 0.5 px. Two lines name the legal line and his own. */
+  .ac-ticks { position: relative; height: 104px; margin: -16px 0 0; padding: 0; pointer-events: none; container-type: inline-size; }
+  .ac-ticks li { position: absolute; top: 0; left: round(down, calc(19.84px + var(--p) * (100cqw - 39.68px)), 1px); width: 1px; height: 6px; background: var(--carbon); }
+  .ac-ticks span { position: absolute; top: 16px; left: 0.5px; translate: -50% 0; display: flex; flex-direction: column; align-items: center; padding-block: 4px; white-space: nowrap; color: var(--graphite); font: 400 0.875rem/1.25rem var(--mono); font-variant-numeric: tabular-nums; pointer-events: auto; cursor: pointer; }
+  /* Each line's phrase hangs under its label, two lines at most, centred on the tick: 7.5em keeps
+     20/70's and 20/100's apart at 900 px, where they stand 98 px apart (measured). */
+  .ac-ticks em { display: flex; align-items: center; gap: 6px; width: max-content; max-width: 7.5em; margin-top: 2px; font: 400 0.875rem/1.25rem var(--sans); font-style: normal; text-align: center; white-space: normal; text-wrap: balance; }
+  .ac-ticks .me em::before { content: ""; flex: none; width: 8px; height: 8px; background: var(--signal); }
+  .ac-ticks .me span { color: var(--carbon); }
+  .ac-ticks span:hover { color: var(--carbon); }
+  /* The labels are a pointer's shortcut; on a touch screen the thumb is the control and the keys step. */
+  @media (pointer: coarse) { .ac-ticks span { pointer-events: none; } }
+
+  /* 900 to 1279: the words across the top, title left and lead right; the cards and controls below. */
+  @media (max-width: 1279px) {
+    .ac-text { grid-column: 1 / -1; grid-row: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--g); margin-bottom: 64px; }
+    .ac-h { grid-row: 1 / 3; }
+    .ac-lead { margin-top: 0; text-box: trim-start cap alphabetic; }
+    .ac-figs, .ac-ctl { grid-column: 1 / -1; }
+  }
+  /* Under 900: one column, the web's card first. */
+  @media (max-width: 899px) {
+    .ac { padding-block: 64px; }
+    /* 23 gutters need 368 px, more than a phone's column; everything here spans the width anyway. */
+    .ac-in { display: block; }
+    .ac-text { display: block; margin-bottom: 48px; }
+    .ac-lead { margin-top: 24px; }
+    .ac-figs { display: flex; flex-direction: column; gap: 40px; }
+    .ac-ctl { display: block; margin-top: 48px; container-type: inline-size; }
+    .ac-read { font-size: min(6rem, 100cqi / 3.5); }
+    .ac-slide { margin-top: 24px; }
+    .ac-say { display: block; }
+    .ac-ticks { height: 60px; }
+    .ac-ticks em:not(.me em) { display: none; }
+  }
+  /* Below 360 the verdict takes four lines; its room grows to match. */
+  @media (max-width: 599px) {
+    /* On a 360 px phone 20/70 and 20/100 stand 39 px apart and 14 px labels are 42 wide: every other
+       label drops a row, its tick running down to it as a leader (clear of the row above by 3 px). */
+    .ac-ticks { height: 104px; }
+    .ac-ticks .me em { display: none; }
+    .ac-ticks li:nth-child(even) { height: 58px; }
+    .ac-ticks li:nth-child(even) span { top: 56px; }
+    .ac-his { padding: 20px; }
+  }
+  /* Paper shows the cards sharp. */
+  @media print {
+    .ac-card { filter: none !important; }
+    .ac-ctl { display: none; }
+  }
+</style>
+
+<script>
+  // The slider runs on logMAR x 1000 (0 is 20/20, 1000 is 20/200, its max 1146 is 20/280); the
+  // denominator is 20 x 10^(v / 1000), so 20/280 blurs at sigma 8.7 px.
+  // Blur: sigma = 6 * (d - 20) / 180 CSS px. At arm's length a CSS px is about 1.4 arcminutes, so 20/200's
+  // limit, 3 cycles a degree, is a period of about 14 px; a Gaussian of sigma 6 passes under 3% there.
+  // Glare grows with it: the bright areas spread three times as far and come back at up to GLARE of
+  // their light; contrast falls toward white by up to FADE.
+  const GLARE = 0.14, FADE = 0.03
+  const den = (v: number) => 20 * 10 ** (v / 1000)
+  const line = (v: number) => `20/${Math.round(den(v))}`
+  // What a screen reader hears: the line, and at the two marked ones, what they mean.
+  const tell = (v: number) => line(v) + (({ 20: ', normal sight', 40: ', the driving line in most states', 70: ', mild impairment by WHO’s measure', 100: ', moderate impairment by WHO’s measure', 200: ', where legal blindness starts in the U.S.', 280: ', how Thomas sees' } as Record<number, string>)[Math.round(den(v))] ?? '')
+  // The site's --ease, cubic-bezier(0.22, 1, 0.36, 1), solved for its progress at a time x.
+  const ease = (x: number) => {
+    const c = (a: number, b: number, t: number) => 3 * a * t * (1 - t) ** 2 + 3 * b * t * t * (1 - t) + t ** 3
+    let lo = 0, hi = 1, t = x
+    for (let i = 0; i < 24; i++) { t = (lo + hi) / 2; if (c(0.22, 0.36, t) < x) lo = t; else hi = t }
+    return c(1, 1, t)
+  }
+
+  const root = document.querySelector<HTMLElement>('[data-acuity]')
+  if (root && 'IntersectionObserver' in window) {
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
+    const range = root.querySelector<HTMLInputElement>('input[type="range"]')!
+    const MAX = +range.max
+    const host = root.querySelector<HTMLElement>('.rs-in')!
+    const read = root.querySelector<HTMLElement>('.ac-read .n')!
+    const say = root.querySelector<HTMLElement>('.ac-say')!
+    // A line's phrase shows while the readout stands on it (within 1%), so it never names the wrong line.
+    const says = [...root.querySelectorAll<HTMLElement>('.ac-ticks li')].map((li) => [20 * 10 ** (+li.dataset.v! / 1000), li.dataset.say!] as const)
+    const cards = [...root.querySelectorAll<HTMLElement>('.ac-card')]
+    const f = root.querySelector('#ac-eye')!
+    const [focus, spread] = f.querySelectorAll('feGaussianBlur')
+    const veil = f.querySelector('[result="veil"] feFuncA')!
+    const fade = [...f.lastElementChild!.children]
+    const stops = [...root.querySelectorAll<HTMLElement>('.ac-ticks li')].map((li) => +li.dataset.v!)
+
+    let cur = 0, goal = 0, raf = 0, tw = 0, played = false, idle = 0, size = { w: 1, h: 1 }
+    // Firefox and WebKit draw an SVG filter on HTML in software: there a frame took 50 and 24 ms where
+    // Chrome took 17. If four frames of a running change miss the 60 Hz beat, the cards take CSS's own blur and
+    // contrast instead, matched by eye to the SVG path: carbon lifts to the same grey at 20/200.
+    let css = false, late = 0, last = 0
+    const paint = (v: number) => {
+      cur = v
+      const t = (den(v) - 20) / 180, s = 6 * t
+      read.textContent = line(v)
+      const d = den(v), hit = says.find(([at]) => Math.abs(d / at - 1) < 0.01)
+      say.textContent = hit ? hit[1] : ''
+      const now = performance.now()
+      if (!css && now - last < 150 && now - last > 24 && ++late >= 4) css = true
+      last = now
+      if (t <= 0) { for (const c of cards) c.style.filter = ''; return }
+      clearTimeout(idle)
+      idle = setTimeout(() => { for (const c of cards) c.style.willChange = '' }, 400)
+      if (css) {
+        const k = 1 - 0.535 * Math.sqrt(t)
+        for (const c of cards) { c.style.filter = `blur(${s.toFixed(2)}px) contrast(${k.toFixed(3)}) brightness(${(2 / (1 + k)).toFixed(3)})`; c.style.willChange = 'filter' }
+        return
+      }
+      focus.setAttribute('stdDeviation', s.toFixed(2))
+      spread.setAttribute('stdDeviation', (3 * s).toFixed(2))
+      veil.setAttribute('slope', (GLARE * t).toFixed(3))
+      for (const fn of fade) { fn.setAttribute('slope', (1 - FADE * t).toFixed(3)); fn.setAttribute('intercept', (FADE * t).toFixed(3)) }
+      // The region reaches past the card as far as the glare can carry (two of its sigmas), no further.
+      const m = Math.ceil(6 * s) + 2
+      f.setAttribute('x', String(-m / size.w)); f.setAttribute('width', String(1 + (2 * m) / size.w))
+      f.setAttribute('y', String(-m / size.h)); f.setAttribute('height', String(1 + (2 * m) / size.h))
+      for (const c of cards) { c.style.filter = 'url(#ac-eye)'; c.style.willChange = 'filter' }
+    }
+    const queue = (v: number) => { cur = v; if (!raf) raf = requestAnimationFrame(() => { raf = 0; paint(cur) }) }
+    const show = (v: number) => { range.value = String(Math.round(v)); range.dispatchEvent(new Event('lq:set')) } // the glass thumb snaps to it
+    const stop = () => { cancelAnimationFrame(tw); tw = 0 }
+    // Glide to a value with the site's easing: the thumb, the filter and the readout move as one.
+    const glide = (to: number, ms: number, wait = 0) => {
+      stop()
+      goal = to
+      range.setAttribute('aria-valuetext', tell(to))
+      if (reduce || !ms) { show(to); return queue(to) }
+      const from = cur, t0 = performance.now() + wait
+      const step = (now: number) => {
+        const x = Math.min(1, (now - t0) / ms)
+        tw = x < 1 ? requestAnimationFrame(step) : 0
+        if (x < 0) return
+        const v = from + (to - from) * ease(x)
+        show(v); paint(v)
+      }
+      tw = requestAnimationFrame(step)
+    }
+
+    // The reader's hand: a drag sets the value as it goes; any press or key stops the autoplay at once.
+    host.addEventListener('pointerdown', () => { played = true; stop() }, { capture: true })
+    range.addEventListener('input', () => { played = true; stop(); goal = +range.value; range.setAttribute('aria-valuetext', tell(goal)); queue(goal) })
+    // Keys step a whole line of the chart; Home and End go to 20/20 and 20/280.
+    range.addEventListener('keydown', (e) => {
+      const next = stops.find((p) => p > goal) ?? MAX, prev = stops.findLast((p) => p < goal) ?? 0
+      const to = ({ ArrowRight: next, ArrowUp: next, PageUp: next, ArrowLeft: prev, ArrowDown: prev, PageDown: prev, Home: 0, End: MAX } as Record<string, number>)[e.key]
+      if (to === undefined) return
+      e.preventDefault(); played = true; glide(to, 300)
+    })
+    // A press on a line's label goes there (pointer only; the keys already step line by line).
+    root.querySelector('.ac-ticks')!.addEventListener('click', (e) => {
+      const li = (e.target as Element).closest<HTMLElement>('li')
+      if (li) { played = true; glide(+li.dataset.v!, 300) }
+    })
+
+    // Nothing runs until the band is within a screen of the window.
+    const measure = () => { size = { w: Math.min(...cards.map((c) => c.offsetWidth)) || 1, h: Math.min(...cards.map((c) => c.offsetHeight)) || 1 }; if (cur > 0) queue(cur) }
+    const near = new IntersectionObserver(([en]) => {
+      if (!en.isIntersecting) return
+      near.disconnect()
+      new ResizeObserver(measure).observe(cards[1])
+      // Under reduced motion it opens on 20/280, still.
+      if (reduce) { played = true; show(MAX); goal = MAX; range.setAttribute('aria-valuetext', tell(MAX)); paint(MAX) }
+    }, { rootMargin: '100% 0px' })
+    near.observe(root)
+    // Once, when most of the cards are in view: hold 20/20 for 600 ms, then fall to 20/280 in 1.8 s.
+    const figs = root.querySelector<HTMLElement>('.ac-figs')!
+    const once = new IntersectionObserver(([en]) => {
+      if (!en.isIntersecting || (en.intersectionRatio < 0.6 && en.intersectionRect.height < innerHeight * 0.5)) return
+      once.disconnect()
+      if (!played) { played = true; glide(MAX, 1800, 600) }
+    }, { threshold: [0, 0.2, 0.4, 0.6, 0.8, 1] })
+    once.observe(figs)
+  }
+</script>

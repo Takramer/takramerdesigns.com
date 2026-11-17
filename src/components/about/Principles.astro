@@ -1,0 +1,231 @@
+---
+import Ending from '../Ending.astro'
+import { close } from '../../lib/marks'
+// Principles (review, 11 November; named Principles 14 November, was What he believes): his three principles, in his order, each said and shown.
+// Every demonstration sits in the same square frame on --mat at the same scale, plays once as it
+// enters view and again on hover. Its resting state is the finished one, so without script, or under
+// reduced motion (no html.motion), the reader sees the end of each demonstration and nothing moves.
+// Each shows the real thing, rebuilt from its source in the site's own faces:
+// 01 Underline's brief head as it ships now: underline/src/components/ReportView.jsx (header.pl-top:
+//    .pl-id, the h1 from splitLead, .pl-grade, .glance) and underline/src/styles/plates.css and
+//    tokens.css (canvas #F3EDE0, ink #0E0E0E, ink-2 #45413A). Stacked as plates.css
+//    stacks it under 860 px; one of its four glance figures, the first, so it fits a 300 px frame. The figures are Tesla's Q3 2026 brief (assets/underline/brief).
+// 02 Grace One's Sunday Times section. Before: graceone/qa-dump/worship.json, 13 October (eyebrow
+//    "Sunday at a glance", card 3 "11:00 a.m."), boxed as graceone/design-critique.md describes it
+//    ("four identical bordered time cards") with the card tokens in graceone/cards-inventory.md (1px
+//    ink border, 8px corners, 24 padding). After: graceone/v18-screens/worship-times-desktop.jpg and
+//    assets/grace-one/components/sunday-morning-2x.png (a navy rule on top, the time in large Hedvig),
+//    colours from graceone/DESIGN.md (cream #F5F1EB, ink #1C1A19, navy #163A64).
+// 03 The Radix Church mark (assets/marks, on /logos), measured from its own path data.
+const radix = close('radixchurch')
+const pts = radix.anchors.split('M').filter(Boolean).map((p) => p.replace('h0', '').split(' ').map(Number))
+// The frame's view box: the mark (240 by 300) in the middle of a 400 square.
+const VB = [-80, -50, 400, 400]
+const at = (x: number, y: number) => `left: ${((x - VB[0]) / VB[2]) * 100}%; top: ${((y - VB[1]) / VB[3]) * 100}%`
+// The two slopes that match: the roof's left edge, (96, 14.42) to (120, 0), and the left arm's
+// underside, (0, 155.77) to (96, 98.08). Both rise 0.601 per unit across: 31.0 degrees.
+const deg = (dx: number, dy: number) => Math.round((Math.atan2(dy, dx) * 180) / Math.PI)
+const SLOPE = deg(24, 14.42)
+if (SLOPE !== deg(96, 155.77 - 98.08)) throw new Error('Radix: the roof and the arm no longer share a slope')
+// An arc of radius r about a vertex, from the horizontal (dx 1 right, -1 left) to the slope (dy -1
+// up, 1 down, in SVG's y). The sweep is clockwise when the turn is (the cross product's sign).
+const arc = (x: number, y: number, r: number, dx: 1 | -1, dy: 1 | -1) => {
+  const a = (SLOPE * Math.PI) / 180
+  return `M${x + dx * r} ${y}A${r} ${r} 0 0 ${dx * dy > 0 ? 1 : 0} ${(x + dx * r * Math.cos(a)).toFixed(2)} ${(y + dy * r * Math.sin(a)).toFixed(2)}`
+}
+---
+<section class="pr" aria-labelledby="believes-h" data-pr>
+  <h2 id="believes-h">Principles</h2>
+  <ol class="pr-list">
+    <li class="pr-i">
+      <p class="pr-n">01</p>
+      <h3 class="pr-w"><Ending text="Function" /></h3>
+      <figure class="pr-fig" role="img" aria-label="The head of Underline’s Tesla Q3 2026 earnings brief, numbered in reading order: 1, the headline, spending on SI and robotics consumed most of this quarter’s gross profit; 2, the C minus grade, 62 of 100, a mixed quarter; 3, the first key figure, diluted EPS of $0.22, down 43.6% a year.">
+        <div class="pr-frame pr-fn">
+          <div class="fn-card">
+            <p class="fn-id"><span class="chip">TSLA</span><span>Q3 2026</span></p>
+            <div class="fn-row"><b class="pin">1</b><p class="fn-h">Spending on SI and robotics consumed most of this quarter’s gross profit.</p></div>
+            <div class="fn-row"><b class="pin">2</b><p class="fn-gr"><span class="g">C−</span><span class="l">62 / 100 · Mixed quarter</span></p></div>
+            <div class="fn-row"><b class="pin">3</b><dl class="fn-gl"><div><dt>EPS · Diluted</dt><dd>$0.22<small>−43.6% YoY</small></dd></div></dl></div>
+          </div>
+        </div>
+        <p class="pr-cap"><span class="f">Fig. 1</span> Underline’s brief: the answer, then the grade, then the figure.</p>
+      </figure>
+      <p class="pr-t">A design should answer a reader’s questions before they ask. An investor reading a filing in Underline, or a first-time visitor to Grace One Church, should find what they came for without hunting.</p>
+    </li>
+    <li class="pr-i">
+      <p class="pr-n">02</p>
+      <h3 class="pr-w"><Ending text="Intention" /></h3>
+      <figure class="pr-fig" role="img" aria-label="Grace One Church’s Sunday times, as they were and as Thomas set them in October 2026: the Sunday at a glance eyebrow and the box around 11:00 a.m. English worship service are cut, and the time is set large under a navy rule.">
+        <div class="pr-frame pr-in">
+          <div class="in-sec">
+            <p class="in-eb">Sunday at a glance</p>
+            <p class="in-h">Your Sunday morning</p>
+            <div class="in-col">
+              <p class="in-t">11:00 a.m.</p>
+              <p class="in-n">English worship service</p>
+              <p class="in-s">Music, preaching, and prayer. Communion every first Sunday.</p>
+            </div>
+          </div>
+        </div>
+        <p class="pr-cap"><span class="f">Fig. 2</span> Grace One’s Sunday times: the eyebrow and the box cut, the time set large.</p>
+      </figure>
+      <p class="pr-t">Every point, line and design choice has to earn its place by supporting the function. If an element does no work for the reader, it goes. His Christian faith shapes the same habit: he treats each project as stewardship, with honesty toward the client and care for the people who use the result.</p>
+    </li>
+    <li class="pr-i">
+      <p class="pr-n">03</p>
+      <h3 class="pr-w"><Ending text="Precision" /></h3>
+      <figure class="pr-fig" role="img" aria-label={`The Radix Church mark in outline, its ${radix.count} anchor points marked. A mirror line runs down its centre; it is 240 units wide and its stem 48, a fifth of that; the roof and the undersides of both arms rise at the same ${SLOPE} degree slope.`}>
+        <div class="pr-frame pr-pc">
+          <svg viewBox={VB.join(' ')} aria-hidden="true" focusable="false">
+            <path class="pc-axis" d={`M120 ${VB[1] + 8}V${VB[1] + VB[3] - 60}`} />
+            <path class="pc-dim" d="M0 334H240M0 326v16M240 326v16M96 312H144M96 306v12M144 306v12" />
+            <path class="pc-ang" d={`M120 0H88${arc(120, 0, 22, -1, 1)}M0 155.77H52${arc(0, 155.77, 40, 1, -1)}M240 155.77H188${arc(240, 155.77, 40, -1, -1)}`} />
+            {radix.paths.map((d) => <path class="pc-line" d={d} pathLength="1" />)}
+            {pts.map(([x, y], i) => <g class="pc-pt" style={`--i: ${i}`}><path d={`M${x} ${y}h0`} /><path class="h" d={`M${x} ${y}h0`} /></g>)}
+          </svg>
+          <span class="pc-l pc-w" style={at(120, 334)}>240</span>
+          <span class="pc-l pc-s" style={at(150, 312)}>48</span>
+          <span class="pc-l pc-a" style={at(72, -12)}>{SLOPE}°</span>
+          <span class="pc-l pc-a" style={at(62, 166)}>{SLOPE}°</span>
+          <span class="pc-l pc-a" style={at(178, 166)}>{SLOPE}°</span>
+        </div>
+        <p class="pr-cap"><span class="f">Fig. 3</span> Radix Church mark: mirrored on one line, the stem a fifth of its 240 width, the roof and arms on one {SLOPE}° slope.</p>
+      </figure>
+      <p class="pr-t">Every deliverable follows rules he can repeat, whether it is a web app or a screen-printed shirt. Grids and exact anchor points come first, so each visual choice rests on something he can measure.</p>
+    </li>
+  </ol>
+</section>
+
+<style>
+  /* A section like the page's others (a rule, 48 px either side), but the principles take the full
+     width beneath their heading, three across from 900 px. */
+  .pr { padding-block: 48px; margin-top: 48px; border-top: 1px solid var(--carbon); }
+  .pr + :global(.prose) { padding-top: 0; }
+  .pr > h2 { font: 400 2rem/2.25rem var(--display); letter-spacing: var(--tr-endless); }
+  .pr-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: var(--g); margin-top: 48px; }
+  .pr-i { display: flex; flex-direction: column; padding-top: 16px; border-top: 1px solid var(--carbon); }
+  .pr-n { font: 400 0.875rem/1.25rem var(--mono); font-variant-numeric: tabular-nums; color: var(--graphite); }
+  .pr-w { margin-top: 24px; font: 400 clamp(2.5rem, 4.4vw, 4rem)/0.92 var(--display); line-height: round(up, 0.91em, 4px); letter-spacing: var(--tr-endless); }
+  /* A flex column: the frame holds no in-flow box, so in block flow the caption's margin fell through it. */
+  .pr-fig { display: flex; flex-direction: column; margin-top: 32px; }
+  .pr-t { margin-top: 24px; max-width: var(--measure); }
+  .pr-cap { margin-top: 12px; font-size: 0.875rem; line-height: 1.25rem; color: var(--graphite); }
+  .pr-cap .f { font-family: var(--mono); margin-right: 4px; }
+
+  /* The frame: square, square-cornered, stone. Everything in it is sized by the frame (cqi), with
+     14 px the floor for any text. */
+  .pr-frame { position: relative; aspect-ratio: 1; overflow: hidden; background: var(--mat); container-type: inline-size; }
+
+  /* 01 Function: Underline's brief head on its own canvas, its reading order pinned 1, 2, 3. Its
+     Epilogue is the site's Geist here, its Spline Sans Mono Geist Mono. */
+  .pr-fn { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; padding: max(12px, 6%); } /* %, not cqi: a box is not its own container */
+  /* Even padding on all four sides (audit, 14 November: the left was 8 px short of the right). */
+  .fn-card { display: grid; gap: max(8px, 3.5cqi); padding: max(14px, 6cqi); background: #F3EDE0; color: #0E0E0E; }
+  .fn-id { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-left: calc(24px + max(8px, 3cqi)); font: 500 0.875rem/1 var(--mono); letter-spacing: 0.04em; text-transform: uppercase; color: #45413A; }
+  .fn-id .chip { padding: 4px 6px; background: #0E0E0E; color: #F3EDE0; }
+  .fn-row { display: grid; grid-template-columns: 24px minmax(0, 1fr); column-gap: max(8px, 3cqi); align-items: start; }
+  .pin { display: grid; place-items: center; width: 24px; height: 24px; background: var(--carbon); color: var(--field); font: 400 0.875rem/1 var(--mono); }
+  .fn-h { font: 700 max(0.875rem, 5cqi)/1.08 var(--sans); letter-spacing: -0.04em; text-wrap: balance; }
+  .fn-gr { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; }
+  /* Underline tints a C grade --warn (#8A5200, 5.6:1 on its canvas) and a fall --neg (5.4:1); this
+     site prints no text under 7:1, so both take its ink and ink-2 here. */
+  .fn-gr .g { font: 800 max(2rem, 15cqi)/0.8 var(--sans); letter-spacing: -0.07em; }
+  .fn-gr .l, .fn-gl dt { font: 500 0.875rem/1.25rem var(--mono); letter-spacing: 0.04em; text-transform: uppercase; color: #45413A; }
+  .fn-gl { margin: 0; padding-block: 6px; border-block: 1px solid #0E0E0E; }
+  .fn-gl dd { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 6px; margin: 0; font: 800 max(1.125rem, 5.5cqi)/1.1 var(--sans); letter-spacing: -0.05em; font-variant-numeric: tabular-nums; }
+  .fn-gl small { font: 500 0.875rem/1.25rem var(--mono); letter-spacing: 0; color: #45413A; }
+
+  /* 02 Intention: Grace One's Sunday times, as they were (an eyebrow, a boxed card) and as he set them
+     (a navy rule, the time large). At rest, the after. Hedvig Letters Serif and Figtree become the
+     site's display face and Geist. */
+  .pr-in { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; padding: max(12px, 6%); }
+  /* At rest the eyebrow is gone, so the top pad matches the bottom (audit, 14 November: it kept the
+     eyebrow's room, twice the bottom); the before state opens it up again (pr-lift). */
+  .in-sec { position: relative; padding: max(16px, 7cqi) max(14px, 6cqi); background: #F5F1EB; color: #1C1A19; }
+  .in-eb { position: absolute; top: max(14px, 6cqi); left: max(14px, 6cqi); opacity: 0; font: 500 0.875rem/1.25rem var(--sans); letter-spacing: 0.04em; text-transform: uppercase; color: #163A64; }
+  .in-h { font: 400 max(1.25rem, 8cqi)/1 var(--display); letter-spacing: var(--tr-endless); }
+  .in-col { position: relative; margin-top: max(16px, 7cqi); padding-top: max(12px, 5cqi); border-top: 1px solid #163A64; }
+  .in-col::after { content: ""; position: absolute; inset: -1px; border: 1px solid #1C1A19; border-radius: 8px; opacity: 0; pointer-events: none; }
+  .in-t { font: 400 max(2rem, 16cqi)/1 var(--display); letter-spacing: var(--tr-endless); white-space: nowrap; }
+  .in-n { margin-top: max(8px, 3cqi); font-size: max(0.875rem, 4.6cqi); line-height: 1.25; }
+  .in-s { margin-top: 4px; font-size: max(0.875rem, 3.8cqi); line-height: 1.4; }
+
+  /* 03 Precision: the mark in outline, its anchor points, its mirror line, two measures and one slope. */
+  .pr-pc svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .pc-line { fill: none; stroke: var(--carbon); stroke-width: 1.5; stroke-linejoin: miter; }
+  .pc-axis, .pc-dim, .pc-ang { fill: none; stroke: var(--graphite); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+  .pc-axis { stroke-dasharray: 6 4; }
+  /* Hollow squares, as Illustrator draws a point not selected. */
+  .pc-pt path { fill: none; stroke: var(--carbon); stroke-width: 9px; stroke-linecap: square; vector-effect: non-scaling-stroke; }
+  .pc-pt .h { stroke: var(--mat); stroke-width: 7px; }
+  .pc-l { position: absolute; translate: -50% -50%; padding: 0 4px; background: var(--mat); font: 400 0.875rem/1.25rem var(--sans); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .pc-a { padding: 0; background: none; }
+  .pc-s { translate: 0 -50%; padding: 0; } /* beside its dimension, so it never meets 240's */
+  /* A pointer resting on the frame selects the mark, as Illustrator would: every anchor point fills
+     orange and the guides go to full ink. Nothing to click; the cursor stays an arrow. */
+  .pc-pt .h, .pc-axis, .pc-dim, .pc-ang { transition: stroke 160ms var(--ease); }
+  @media (hover: hover) {
+    .pr-pc:hover .pc-pt path { stroke: var(--signal); }
+    .pr-pc:hover :is(.pc-axis, .pc-dim, .pc-ang) { stroke: var(--carbon); }
+  }
+
+  /* Motion: html.motion only (site.js; never under reduced motion). Each part animates from its
+     starting look to its resting one, held at the start until the frame enters view (.in). */
+  @keyframes pr-pop { from { scale: 0; } }
+  @keyframes pr-reach { from { scale: 0 1; } }
+  @keyframes pr-drop { from { scale: 1 0; } }
+  @keyframes pr-show { from { opacity: 0; } }
+  @keyframes pr-shed { from { opacity: 1; } }
+  @keyframes pr-grow { from { font-size: max(1.25rem, 8cqi); } }
+  @keyframes pr-lift { from { padding-top: max(36px, 14cqi); } }
+  @keyframes pr-unbox { from { padding-inline: max(14px, 6cqi); padding-bottom: max(14px, 6cqi); } }
+  @keyframes pr-draw { from { stroke-dashoffset: 1; } }
+  :global(html.motion) .pr-fig :is(.pin, .in-sec, .in-eb, .in-col, .in-t, .pc-pt, .pc-axis, .pc-dim, .pc-ang, .pc-l) { animation: 300ms var(--ease) both paused; }
+  :global(html.motion) .pr-fig .in-col::after { animation: 300ms var(--ease) both paused; }
+  :global(html.motion) .pr-fig.in :is(.pin, .in-sec, .in-eb, .in-col, .in-t, .pc-line, .pc-pt, .pc-axis, .pc-dim, .pc-ang, .pc-l) { animation-play-state: running; }
+  :global(html.motion) .pr-fig.in .in-col::after { animation-play-state: running; }
+  :global(html.motion) .pr-fig .pin { animation-name: pr-pop; }
+  :global(html.motion) .fn-row:nth-of-type(2) .pin { animation-delay: 250ms; }
+  :global(html.motion) .fn-row:nth-of-type(3) .pin { animation-delay: 500ms; }
+  /* The eyebrow goes, then the box's sides and corners, then the time takes its size. */
+  :global(html.motion) .pr-fig .in-eb { animation-name: pr-shed; animation-delay: 300ms; }
+  :global(html.motion) .pr-fig .in-sec { animation-name: pr-lift; animation-delay: 450ms; }
+  :global(html.motion) .pr-fig .in-col::after { animation-name: pr-shed; animation-delay: 600ms; }
+  :global(html.motion) .pr-fig .in-col { animation-name: pr-unbox; animation-delay: 600ms; }
+  :global(html.motion) .pr-fig .in-t { animation-name: pr-grow; animation-duration: 400ms; animation-delay: 900ms; }
+  :global(html.motion) .pr-fig .pc-line { stroke-dasharray: 1; animation: pr-draw 500ms var(--ease) both paused; }
+  :global(html.motion) .pr-fig .pc-pt { animation-name: pr-show; animation-duration: 120ms; animation-delay: calc(250ms + var(--i) * 28ms); }
+  :global(html.motion) .pr-fig .pc-axis { transform-origin: top; transform-box: fill-box; animation-name: pr-drop; animation-duration: 500ms; animation-delay: 550ms; }
+  :global(html.motion) .pr-fig .pc-dim { transform-origin: center; transform-box: fill-box; animation-name: pr-reach; animation-delay: 800ms; }
+  :global(html.motion) .pr-fig .pc-ang { animation-name: pr-show; animation-delay: 900ms; }
+  :global(html.motion) .pr-fig .pc-l { animation-name: pr-show; animation-delay: 1000ms; animation-duration: 250ms; }
+
+  /* 900 to 1279: still three across, the frames a little smaller. Under 900: one column. */
+  @media (max-width: 899px) {
+    .pr { margin-top: 48px; }
+    .pr-list { grid-template-columns: minmax(0, 1fr); row-gap: 64px; margin-top: 32px; }
+    .pr-w { font-size: 3rem; }
+  }
+</style>
+
+<script>
+  // Play each demonstration once as its frame comes into view; a pointer resting on it plays it again.
+  // Nothing here runs under reduced motion: the CSS animations exist only under html.motion.
+  const figs = [...document.querySelectorAll<HTMLElement>('[data-pr] .pr-fig')]
+  if (document.documentElement.classList.contains('motion')) {
+    const go = (f: HTMLElement) => f.classList.add('in')
+    if ('IntersectionObserver' in window) {
+      const io = new IntersectionObserver((es) => { for (const e of es) if (e.isIntersecting) { go(e.target as HTMLElement); io.unobserve(e.target) } }, { threshold: 0.5 })
+      figs.forEach((f) => io.observe(f))
+    } else figs.forEach(go)
+    for (const f of figs) {
+      f.addEventListener('pointerenter', (e) => {
+        if (e.pointerType !== 'mouse' || !f.classList.contains('in')) return
+        const all = f.getAnimations({ subtree: true })
+        if (all.some((a) => a.playState === 'running')) return
+        for (const a of all) { a.cancel(); a.play() }
+      })
+    }
+  }
+</script>

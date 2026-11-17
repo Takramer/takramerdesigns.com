@@ -1,0 +1,278 @@
+/* The control layer: liquid glass, after Apple's rules for it (WWDC25 "Meet Liquid Glass", the HIG's
+   Materials page). Loaded after site.css.
+
+   1. Glass is for what floats over content: the bar, its menus, the filters' track, the controls on a
+      film and on the light table. Content is never glass, and glass is never stacked on glass.
+   2. Clear, not frosted (11 November): a light tint and a touch of blur, the rim and lens doing the
+      work; a label on it must still read, so the tint never drops to nothing.
+   3. Shapes are capsules, and a shape inside another is concentric: inner radius = outer radius minus
+      the padding between them.
+   4. Controls that belong together share one piece of glass; a control on paper, with nothing behind
+      it worth bending, is a quiet fill, and the page's one call to act is a solid capsule.
+   5. A touch target is 44 px; spacing steps are 4, 8, 12, 16, 20, 24.
+
+   The material here is all a browser needs. components/Liquid.astro adds the refracting rim where a
+   browser can run one (--gl-lens, on html.gl-live), the springs under a press, and the lenses. */
+
+:root {
+  --gl-tint: 44%;            /* how much of the ground the glass keeps */
+  --gl-blur: 3px;            /* a touch, not frost (Thomas, 11 November: "not a knockoff") */
+  --gl-fill: color-mix(in srgb, var(--carbon) 7%, transparent);    /* a control on paper */
+  --gl-fill-2: color-mix(in srgb, var(--carbon) 12%, transparent); /* hovered, or chosen */
+  /* The rim: light from the top left, a thinner return at the bottom right, a hairline all round. */
+  --gl-rim: inset 0 0 0 0.5px rgb(255 255 255 / 0.55), inset 1px 1px 0.5px -0.5px rgb(255 255 255 / 0.95), inset -1px -1px 0.5px -0.5px rgb(255 255 255 / 0.55);
+  --gl-shadow: 0 0 0 0.5px rgb(20 20 20 / 0.07), 0 1px 2px rgb(20 20 20 / 0.06), 0 8px 24px rgb(20 20 20 / 0.1);
+  --spring: cubic-bezier(0.32, 0.72, 0, 1); /* Apple's sheet curve */
+}
+/* With a refracting rim the glass can be clearer: the rim, not the blur, says what it is. */
+html.gl-live { --gl-tint: 36%; --gl-blur: 1.5px; }
+
+/* ---- The material ---------------------------------------------------------------------------------
+   On the element itself, or on its ::before where the element holds another piece of glass (a
+   backdrop-filter on a parent would stop the child's from seeing the page). */
+.bar .name, .seg, .toc, .clip-btn, .hint, .zoom, .pan button, .bar .menu {
+  -webkit-backdrop-filter: blur(var(--gl-blur)) saturate(1.8);
+  backdrop-filter: blur(var(--gl-blur)) var(--gl-lens,) saturate(1.8);
+  background-color: color-mix(in srgb, var(--ground) var(--gl-tint), transparent);
+  box-shadow: var(--gl-rim), var(--gl-shadow);
+  border: 0;
+}
+@media (min-width: 900px) {
+  .bar .sub, .bar nav > ul::before {
+    -webkit-backdrop-filter: blur(var(--gl-blur)) saturate(1.8);
+    backdrop-filter: blur(var(--gl-blur)) var(--gl-lens,) saturate(1.8);
+    background-color: color-mix(in srgb, var(--ground) var(--gl-tint), transparent);
+    box-shadow: var(--gl-rim), var(--gl-shadow);
+    border: 0;
+  }
+  .bar nav > ul { position: relative; isolation: isolate; }
+  .bar nav > ul::before { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none; }
+}
+
+/* ---- The bar: two capsules floating over the page ----------------------------------------------- */
+.bar { background: none; pointer-events: none; transition: none; }
+.bar > * { pointer-events: auto; }
+/* The page fades into the ground as it passes under the bar. No backdrop blur since 11 November: a
+   fixed blur under a fading mask drew visible bands across photos. The fade eases out over eight stops
+   so its end has no edge either. */
+.bar::before {
+  content: ""; position: absolute; inset: 0 0 -28px; z-index: -1; pointer-events: none;
+  background: linear-gradient(
+    var(--ground) 20%,
+    color-mix(in srgb, var(--ground) 92%, transparent) 30%,
+    color-mix(in srgb, var(--ground) 80%, transparent) 40%,
+    color-mix(in srgb, var(--ground) 64%, transparent) 50%,
+    color-mix(in srgb, var(--ground) 46%, transparent) 60%,
+    color-mix(in srgb, var(--ground) 29%, transparent) 70%,
+    color-mix(in srgb, var(--ground) 15%, transparent) 80%,
+    color-mix(in srgb, var(--ground) 5%, transparent) 90%,
+    color-mix(in srgb, var(--ground) 0%, transparent));
+}
+.bar .name { display: flex; align-items: center; height: 44px; padding: 0 18px; border-radius: 999px; transition: scale 240ms var(--spring); }
+.bar .name:active { scale: 0.96; }
+.bar .name svg { height: 18px; }
+.bar ul a, .bar .nav-l { background-image: none; transition: background-color 160ms var(--ease), color 160ms var(--ease); }
+
+@media (min-width: 900px) {
+  .bar ul { gap: 2px; padding: 4px; border-radius: 999px; font-size: 0.9375rem; line-height: 1.25rem; }
+  /* Every control in a capsule is a full 44 for a mouse too, so the nav capsule is 52 in the 64 bar and
+     the name's capsule matches it (11 November: it was 36, and 44 only under a finger). */
+  .bar ul > li > a, .bar .nav-l { display: inline-flex; align-items: center; height: 44px; padding: 0 16px; border-radius: 999px; }
+  .bar .name { height: 52px; }
+  .bar .nav-l { gap: 2px; padding: 0 14px; }
+  .bar ul > li > a:hover, .bar .has-sub:is(:hover, :focus-within) .nav-l { background-color: var(--gl-fill); }
+  /* The page the reader is on is a raised white pill, the way a segmented control marks its choice, so a
+     hover (a tint) never passes for it and it never reads as greyed out. */
+  .bar ul > li > a[aria-current], .bar .has-sub > .nav-l[aria-current], .bar .sub a[aria-current] { background-color: #fff; box-shadow: 0 0 0 0.5px rgb(20 20 20 / 0.08), 0 1px 3px rgb(20 20 20 / 0.16); }
+  /* Work's menu: its own piece of glass under the capsule, growing out of the button. Radius 22 with
+     6 of padding, so its rows are 16. */
+  .bar .sub {
+    top: calc(100% + 12px); left: -4px; min-width: 184px; padding: 6px; border-radius: 22px; --gl-tint: 72%;
+    transform-origin: 24px 0; scale: 0.9; translate: 0 -6px;
+    transition: opacity 160ms var(--ease), scale 240ms var(--spring), translate 240ms var(--spring);
+  }
+  .bar .has-sub:is(:hover, :focus-within, .linger, .open):not(.shut) .sub { scale: 1; }
+  .bar .sub::before { content: ""; position: absolute; inset: -16px 0 auto; height: 16px; background: none; box-shadow: none; } /* the pointer's bridge from Work */
+  .bar .sub li + li { margin-top: 2px; }
+  .bar .sub a { display: flex; align-items: center; height: 44px; padding: 0 14px; border-radius: 16px; }
+  .bar .sub a:not([aria-current]):hover { background-color: var(--gl-fill); }
+}
+
+/* Phones: the menu button is a glass circle, and the menu a glass sheet that grows out of it over a
+   dimmed page (a menu, not a takeover: the page stays in sight behind it). */
+@media (max-width: 899px) {
+  .bar .menu {
+    margin-right: 0; border-radius: 50%;
+  }
+  .bar .menu i { width: 18px; }
+  .bar::after { content: ""; position: fixed; inset: 0; z-index: -2; background: rgb(20 20 20 / 0.22); opacity: 0; pointer-events: none; transition: opacity var(--vt) var(--ease); }
+  .menu-open .bar::after { opacity: 1; pointer-events: auto; }
+  .bar nav {
+    inset: 64px var(--m) auto; max-height: calc(100svh - 80px); overflow-y: auto; padding: 8px; border-radius: 28px; --gl-tint: 78%;
+    -webkit-backdrop-filter: blur(var(--gl-blur)) saturate(1.8); backdrop-filter: blur(var(--gl-blur)) var(--gl-lens,) saturate(1.8);
+    background-color: color-mix(in srgb, var(--ground) var(--gl-tint), transparent); box-shadow: var(--gl-rim), var(--gl-shadow), 0 24px 64px rgb(20 20 20 / 0.18);
+    clip-path: none; opacity: 0; scale: 0.5; transform-origin: calc(100% - 22px) -32px;
+    transition: opacity calc(var(--vt) * 0.6) var(--ease), scale var(--vt) var(--spring), visibility 0s var(--vt);
+  }
+  .menu-open .bar nav { clip-path: none; opacity: 1; scale: 1; transition: opacity calc(var(--vt) * 0.6) var(--ease), scale var(--vt) var(--spring); }
+  /* Rows of 52 at radius 20: 28 minus the sheet's 8. */
+  .bar ul { font: 500 1.0625rem/1.5rem var(--sans); letter-spacing: 0; }
+  .bar ul a { display: flex; align-items: center; min-height: 52px; padding: 0 16px; border-radius: 20px; }
+  .bar ul a:active, .bar ul a[aria-current="page"] { background-color: var(--gl-fill); }
+  /* Work heads its three pages, as a menu's section title does. */
+  .bar .nav-l { display: flex; align-items: center; min-height: 36px; padding: 8px 16px 0; font: 400 0.875rem/1.25rem var(--sans); color: var(--graphite); pointer-events: none; }
+  .bar .sub { padding: 0; font: inherit; background: none; border: 0; }
+  /* Keyed on .has-sub, not on nav: the lens shows a copy of this list, and the copy must lay out the same. */
+  .bar ul > .has-sub + li { margin-top: 8px; padding-top: 8px; border-top: 1px solid color-mix(in srgb, var(--carbon) 10%, transparent); }
+  /* The selection is a pill of glass that follows a finger down the rows and turns to a lens while it
+     moves (Liquid.astro, menu()); let go, and the row under it opens. */
+  .bar ul.lq-menu { touch-action: pinch-zoom; }
+  .lq-menu a { position: relative; z-index: 1; }
+  .lq-menu > .lq-knob { z-index: 2; }
+  .lq-menu .lqg-lens { background: var(--ground); opacity: var(--lq-p, 0); }
+  .lq-menu .lqg-glass {
+    background: rgb(20 20 20 / calc(0.07 * (1 - var(--lq-p, 0))));
+    box-shadow:
+      inset 0 0 0 1px rgb(20 20 20 / calc(var(--lq-p, 0) * 0.12)), inset 0 1px 0 rgb(255 255 255 / calc(var(--lq-p, 0) * 0.9)),
+      0 calc(var(--lq-p, 0) * 6px) calc(var(--lq-p, 0) * 20px) rgb(20 20 20 / calc(var(--lq-p, 0) * 0.14));
+  }
+  .bar ul.lq-menu a:active, .bar ul.lq-menu a[aria-current="page"] { background-color: transparent; }
+}
+
+/* ---- Buttons ---------------------------------------------------------------------------------------
+   On paper: a capsule of quiet fill (Apple's bordered style). The live prototype's is the one solid
+   capsule. Over a picture: glass. All take the spring and the light under the finger from the script. */
+.button, .v-press, .v-nav button:not(.v-press) {
+  border: 0; border-radius: 999px; background-color: var(--gl-fill); background-image: none; color: var(--carbon);
+  transition: background-color 160ms var(--ease), color 160ms var(--ease), scale 120ms var(--ease);
+}
+.button, .v-press { justify-content: center; gap: 8px; min-height: 44px; padding: 0 20px; font-size: 0.9375rem; line-height: 1.25rem; font-weight: 500; white-space: nowrap; }
+.proto-load { border-radius: 999px; padding: 0 28px; }
+.clip-btn { left: 12px; bottom: 12px; padding: 0 18px; border-radius: 999px; font-weight: 500; --gl-tint: 60%; }
+@media (hover: hover) {
+  .button:hover, .v-press:hover, .v-nav button:not(.v-press):hover { background-color: var(--gl-fill-2); color: var(--carbon); }
+  .clip-btn:hover, .pan button:hover { background-color: color-mix(in srgb, var(--ground) 80%, transparent); color: var(--carbon); }
+}
+@media (hover: none) {
+  .button:hover, .v-press:hover { background-color: var(--gl-fill); color: var(--carbon); }
+  .clip-btn:hover, .pan button:hover { background-color: color-mix(in srgb, var(--ground) var(--gl-tint), transparent); color: var(--carbon); }
+}
+.v-press[aria-pressed="true"] { background-color: var(--gl-fill-2); }
+:is(.button, .v-press, .proto-load, .clip-btn):focus-visible { outline-offset: 3px; }
+/* Under the script the spring does the press, and a light follows the finger. */
+.lq:active { scale: none; }
+:is(.button, .v-press, .proto-load, .clip-btn, .pan button, .zoom button, .bar .menu, .v-nav button).lq::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: radial-gradient(circle at var(--lx, 50%) var(--ly, 30%), rgb(255 255 255 / calc(var(--lq-p, 0) * 0.6)), transparent 70%);
+}
+.proto-load.lq::after { background: radial-gradient(circle at var(--lx, 50%) var(--ly, 30%), rgb(255 255 255 / calc(var(--lq-p, 0) * 0.3)), transparent 70%); }
+.bar .menu.lq { overflow: visible; }
+
+/* ---- Segmented controls ----------------------------------------------------------------------------
+   The /projects filters ride in one glass capsule that stays under the bar while the wall scrolls
+   beneath it. The selection is a pill inside (44 in a 52 capsule, 4 of padding); held or moving it
+   turns to a lens (site.css, .lq-seg). */
+.seg { position: sticky; top: 64px; z-index: 4; display: flex; width: fit-content; max-width: 100%; margin-top: 32px; margin-left: -4px; padding: 4px; border-radius: 999px; }
+.filters { flex-wrap: nowrap; gap: 0; margin: 0; }
+.filters button { min-height: 44px; padding: 0 16px; border-radius: 999px; font-size: 0.9375rem; line-height: 1.25rem; white-space: nowrap; transition: color 160ms var(--ease); }
+.filters button { position: relative; }
+.filters button span:first-child, .filters button:hover span:first-child, .filters [aria-pressed="true"] span:first-child { padding: 0; background: none; }
+@media (hover: hover) { .filters button:hover { color: var(--carbon); } }
+.filters:not(.lq-seg) [aria-pressed="true"] { background-color: var(--gl-fill-2); }
+.wall { margin-top: 24px; }
+@media (max-width: 899px) {
+  /* On a phone it scrolls with the page: the bar alone keeps the top. */
+  .seg { position: relative; top: auto; margin-top: 24px; }
+}
+@media (max-width: 599px) {
+  .seg { width: calc(100% + 8px); }
+  .filters { flex: 1; justify-content: space-between; }
+  .filters button { flex: 1 1 auto; padding: 0 10px; }
+  .filters .num { margin-left: 4px; }
+}
+@media (max-width: 379px) { .filters button { padding: 0 6px; font-size: 0.875rem; } .filters .num { display: none; } }
+/* A capsule that scrolls sideways (One-offs' filters, Contents) scrolls sideways only. overflow-x: auto
+   turns overflow-y to auto too, and the lens's box reaches 35 px past its pill on every side (the room
+   its refraction samples from, trimmed by clip-path, which leaves layout alone), so the row scrolled
+   31 px up and down under a wheel. The knob's mount now clips at the capsule's 4 px of padding, where
+   the scroller clips anyway, and a vertical swipe or wheel passes to the page. A finger may pan the
+   row sideways from a filter, not only drag the pill. */
+:is(.oo-ctl .seg:first-child, .toc ol, .lx-ctl) { overflow-y: hidden; overscroll-behavior-y: auto; }
+:is(.oo-ctl .seg:first-child, .toc ol) .lq > .lq-knob.lq-knob { overflow: clip; overflow-clip-margin: 4px; }
+.oo-ctl .seg:first-child .lq-seg { touch-action: pan-x pan-y; }
+
+/* A case's prototype tabs: the same control on paper, so its track is a fill and its selection a
+   raised pill. */
+.proto-tabs { gap: 0; padding: 3px; border-radius: 999px; background-color: var(--gl-fill); }
+.proto-tabs button, .proto-tabs button + button { min-height: 44px; padding: 0 16px; border: 0; border-radius: 999px; transition: background-color 160ms var(--ease), box-shadow 160ms var(--ease); }
+.proto-tabs button[aria-pressed="true"] { background-color: #fff; color: var(--carbon); box-shadow: 0 0 0 0.5px rgb(20 20 20 / 0.06), 0 1px 3px rgb(20 20 20 / 0.14); }
+.proto-bar { border-bottom-color: color-mix(in srgb, var(--carbon) 18%, transparent); }
+
+/* ---- Sliders: Apple's track, 6 high --------------------------------------------------------------- */
+.lq-range .rs-track { height: 6px; border-radius: 3px; background: var(--gl-fill-2); }
+.lq-range .rs-track i { border-radius: 3px; }
+
+/* ---- The light table's controls --------------------------------------------------------------------
+   Zoom is one capsule of three parts; each arrow is its own glass circle; the hint is a glass label. */
+.hint { top: 16px; padding: 8px 16px; border-radius: 999px; --gl-tint: 70%; }
+.zoom { bottom: 20px; gap: 0; width: 44px; border-radius: 22px; }
+.zoom button, .zoom button:hover, .zoom button[aria-disabled="true"]:hover { background: none; border-radius: 22px; }
+.zoom span { background: none; }
+@media (hover: hover) { .zoom button:not([aria-disabled="true"]):hover { background-color: var(--gl-fill); color: var(--carbon); } }
+.pan.pan { bottom: 20px; gap: 6px; }
+.pan button { border-radius: 50%; }
+
+/* ---- The viewers' toolbar: three circles, grouped ------------------------------------------------- */
+.v-nav { gap: 8px; }
+.v-nav button:not(.v-press) { width: 44px; border-radius: 50%; }
+.v-nav button:not(.v-press):hover span { background-size: 0 1px; }
+.v-nav button[data-close] { margin-left: 8px; } /* Close stands a little apart from Previous and Next */
+.v-nav .ic { scale: 1.25; }
+.v-top { padding-block: 10px; }
+
+/* ---- For readers who ask for less ------------------------------------------------------------------ */
+@media (prefers-reduced-transparency: reduce) {
+  :root, html.gl-live { --gl-tint: 96%; --gl-blur: 0px; }
+}
+@media (prefers-contrast: more) {
+  :root, html.gl-live { --gl-tint: 100%; --gl-shadow: 0 0 0 1px var(--carbon); --gl-fill: color-mix(in srgb, var(--carbon) 12%, transparent); }
+}
+/* Forced colours (Windows contrast themes): glass turns to Canvas with a CanvasText rule, lenses go,
+   and a selection or held thumb shows as a Highlight outline. Same rule as the public kit. */
+@media (forced-colors: active) {
+  .bar .name, .seg, .toc, .clip-btn, .hint, .zoom, .pan button, .bar .menu, .bar .sub, .bar nav > ul::before, .button, .proto-load {
+    -webkit-backdrop-filter: none; backdrop-filter: none; background: Canvas; border: 1px solid CanvasText; box-shadow: none;
+  }
+  .lqg-lens { display: none; }
+  /* The pill alone takes the ring: the knob is only its mount and spans the whole track, so a border
+     on it drew a second, square ring round the capsule (11 November). */
+  .lq-knob { background: none; }
+  .lqg-glass { background: Canvas; border: 2px solid Highlight; }
+  .lq-range .rs-track { background: GrayText; }
+}
+html.still :is(.bar nav, .bar .sub, .bar::after) { transition-duration: 0s; }
+.button.draw-play { background-color: var(--gl-fill); }
+@media (hover: hover) { .button.draw-play:hover { background-color: var(--gl-fill-2); } }
+
+/* A link that leaves the site carries the out arrow everywhere: the footer, Contact, and a case's links. */
+.visit a { display: inline-flex; align-items: center; gap: 8px; }
+
+/* The phone menu's selection has no place on the desktop bar. Doubled to outrank site.css's .lq > .lq-knob.lq-knob. */
+@media (min-width: 900px) { .lq-menu > .lq-knob.lq-knob { display: none; } }
+
+/* ---- Contents (Terms, the style guide, every case): the filters' capsule, for a page's sections ---- */
+/* It stands above the bar's fade, and on its pages the fade runs on under it, so text passing beside
+   the capsule dissolves too instead of showing through between the two (11 November). */
+:root:has(.toc) .bar::before { inset: 0 0 -76px; }
+.toc { --gl-tint: 80%; position: sticky; top: 64px; z-index: 6; display: flex; width: fit-content; max-width: calc(100% + 8px); margin: 32px 0 0 -4px; padding: 4px; border-radius: 999px; }
+.toc ol { display: flex; gap: 2px; margin: 0; padding: 0; list-style: none; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; border-radius: 999px; position: relative; }
+.toc ol::-webkit-scrollbar { display: none; }
+/* Buttons too: the style guide's example capsule shows the control without going anywhere. */
+.toc :is(a, button) { display: inline-flex; align-items: center; gap: 6px; height: 44px; padding: 0 14px; border: 0; border-radius: 999px; background-color: transparent; font: inherit; font-size: 0.9375rem; line-height: 1.25rem; color: var(--graphite); text-decoration: none; white-space: nowrap; cursor: pointer; transition: background-color 160ms var(--ease), color 160ms var(--ease); }
+.toc :is(a, button)[aria-current] { background-color: var(--gl-fill-2); color: var(--carbon); }
+.toc :is(a, button):focus-visible { outline-offset: -2px; }
+@media (hover: hover) { .toc :is(a, button):hover { color: var(--carbon); } }
+/* At 400% zoom a window is under 500 px tall, and a capsule stuck under the bar would take a third
+   of it: there it scrolls away with the page (11 November). */
+@media (max-height: 500px) { .toc { position: static; } }
+html { scroll-padding-top: 128px; } /* a section lands clear of the bar and the capsule */

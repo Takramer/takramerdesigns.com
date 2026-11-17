@@ -1,0 +1,329 @@
+---
+import Base from '../layouts/Base.astro'
+import Ending from '../components/Ending.astro'
+import Arrow from '../components/Arrow.astro'
+import { EMAIL, SITE } from '../data/site'
+import { mark, close } from '../lib/marks'
+
+// Logos (approved 11 November): the wall as a specimen sheet. A view control (Fill, Outline,
+// Anchors; the O key toggles Outline, as a vector app's outline view does) and a ground control
+// (Light, Dark) act on every mark at once; pressing a mark puts it on the stage with facts counted
+// from its SVG at build time, and the stage is the 400% lens (site.js wires any .lens).
+// Each mark's paths are written once, in the hidden defs below; every view of it is a <use>.
+// Order: live marks first, then concepts, then marks for sale. A short name, where there is one,
+// labels the wall's cell; the stage and every heading use the full name (Thomas, 11 November).
+const LOGOS: [slug: string, name: string, note?: string, short?: string][] = [
+  ['hcw', 'Healthy Campus Week'],
+  ['polarplunge', 'Polar Plunge'],
+  ['soj', 'Spirit of Joy'],
+  ['aapihm', 'AAPI Heritage Month'],
+  ['goodword', 'Good Word'],
+  ['lunchtablesports', 'LunchTable Sports Media', 'Concept'],
+  ['operationshero', 'OperationsHERO', 'Concept'],
+  ['lybw', 'Love Your Body Week'],
+  ['hihtec', 'Hand in Hand Teens Encounter Christ', undefined, 'HIH TEC'],
+  ['tfs', 'The Flavor Scroll'],
+  ['radixchurch', 'Radix Church', 'For sale'],
+  ['repperset', 'Rep Per Set', 'For sale'],
+  ['nydex', 'Nydex'],
+  ['owloptics', 'Owl Optics', 'For sale'],
+  ['gradientrail', 'Gradient Rail', 'For sale'],
+]
+const RANK: Record<string, number> = { Concept: 1, 'For sale': 2 }
+const raw = import.meta.glob<string>('../assets/marks/*.svg', { query: '?raw', import: 'default', eager: true })
+// Proportion as a designer says it: a small whole ratio when one fits within half a percent, else to 1.
+const ratio = (w: number, h: number) => {
+  for (let d = 1; d <= 10; d++) { const n = Math.round((w / h) * d); if (n && n <= 10 && Math.abs(n / d / (w / h) - 1) < 0.005) return `${n}:${d}` }
+  return `${(w / h).toFixed(2)}:1`
+}
+const marks = LOGOS.map(([slug, name, note, short], i) => ({ slug, name, note, short, i, ...mark(slug), tight: close(slug).box }))
+  .sort((a, b) => (RANK[a.note ?? ''] ?? 0) - (RANK[b.note ?? ''] ?? 0) || a.i - b.i)
+  .map((m) => {
+    const [, , w, h] = raw[`../assets/marks/${m.slug}.svg`].match(/viewBox="([^"]*)"/)![1].split(/[\s,]+/).map(Number)
+    return { ...m, ratio: ratio(w, h), status: m.note ?? 'In use', ask: m.note === 'For sale' ? `mailto:${EMAIL}?subject=${encodeURIComponent(`Buying the ${m.name} mark`)}` : '' }
+  })
+const first = marks[0]
+const SIZES = [64, 32, 16]
+const list = {
+  '@type': 'ItemList',
+  '@id': `${SITE}/logos#list`,
+  name: 'Logos',
+  numberOfItems: marks.length,
+  itemListElement: marks.map((m, i) => ({ '@type': 'ListItem', position: i + 1, name: m.name })),
+}
+---
+<Base
+  title="Logos | TAKramer Designs"
+  description="Fifteen logos by Thomas Kramer, for clients and for his own brands. Zoom any mark to 400% to see its outline and every anchor point."
+  page="logos"
+  graph={[list]}
+>
+  <svg class="lx-defs" width="0" height="0" aria-hidden="true" focusable="false"><defs>
+    {marks.map((m) => (
+      <g id={`m-${m.slug}`}>
+        {m.paths.map((d) => <path d={d} fill="currentColor" stroke="currentColor" vector-effect="non-scaling-stroke" />)}
+        <path d={m.anchors} fill="none" stroke="#EF5714" stroke-linecap="square" vector-effect="non-scaling-stroke" style="opacity: var(--an); stroke-width: var(--aw, 4px)" />
+      </g>
+    ))}
+  </defs></svg>
+
+  <div class="w page-head">
+    <p class="crumb"><a class="up" href="/projects"><Arrow back /><span>Work</span></a></p>
+    <h1 class="title"><span class="t"><Ending text="Logos" /></span></h1>
+    <p class="intro-line">Fifteen marks, drawn for clients and for his own brands.</p>
+  </div>
+
+  <div class="w lx" data-v="fill" data-g="light">
+    <div class="lx-ctl">
+      <div class="seg"><div class="views" role="group" aria-label="View">
+        <button type="button" data-v="fill" aria-pressed="true">Fill</button>
+        <button type="button" data-v="outline" aria-pressed="false" aria-keyshortcuts="O" title="Outline (O)">Outline</button>
+        <button type="button" data-v="anchors" aria-pressed="false">Anchors</button>
+      </div></div>
+      <div class="seg"><div class="views" role="group" aria-label="Ground">
+        {['Light', 'Dark'].map((g) => <button type="button" data-g={g.toLowerCase()} aria-pressed={String(g === 'Light')}><i class={`lx-sw lx-${g.toLowerCase()}`} aria-hidden="true"></i><span class="lx-gl">{g}</span></button>)}
+      </div></div>
+    </div>
+
+    <div class="lx-body">
+      <ul class="lx-wall">
+        {marks.map((m, i) => (
+          <li class="lx-t">
+            <button type="button" class="lx-b" aria-pressed="false" aria-controls="lx-stage"
+              data-k={m.slug} data-name={m.name} data-box={m.box} data-shift={m.shift} data-tight={m.tight} data-n={m.count} data-p={m.paths.length} data-r={m.ratio} data-s={m.status} data-ask={m.ask || undefined}>
+              <span class="lx-art"><svg viewBox={m.box} aria-hidden="true" focusable="false"><use class="v" href={`#m-${m.slug}`} transform={m.shift} /></svg></span>
+              <span class="lx-cap">
+                {m.short ? <span class="lx-n"><span aria-hidden="true">{m.short}</span><span class="sr">{m.name}</span></span> : <span class="lx-n">{m.name}</span>}
+                {m.note && <span class="lx-s">{m.note}</span>}
+              </span>
+            </button>
+            {m.ask && <a class="ask-mark lx-askw" href={m.ask}>Ask about this mark<span class="sr"> (opens your mail app)</span></a>}
+          </li>
+        ))}
+      </ul>
+
+      <aside class="lx-stage" id="lx-stage" aria-label="Specimen">
+        <button class="lens lx-plate" type="button" aria-pressed="false" data-n={first.count}>
+          <svg viewBox="0 0 300 200" aria-hidden="true" focusable="false"><g class="zoom"><svg class="lx-in" viewBox={first.box} width="300" height="200"><use class="v" href={`#m-${first.slug}`} transform={first.shift} /></svg></g></svg>
+          <span class="pct" aria-hidden="true">100%</span>
+          <span class="sr"><span class="lx-sn">{first.name}</span> at 400%</span>
+        </button>
+        <div class="lx-facts" aria-live="polite">
+          <h2 class="lx-h lx-sn">{first.name}</h2>
+          <p class="lx-st">{first.status}</p>
+          <dl class="lx-dl">
+            <div><dt>Anchor points</dt><dd class="lx-num" data-f="n">{first.count}</dd></div>
+            <div><dt>Paths</dt><dd class="lx-num" data-f="p">{first.paths.length}</dd></div>
+            <div><dt>Proportion</dt><dd class="lx-num" data-f="r">{first.ratio}</dd></div>
+          </dl>
+          <div class="lx-sizes">
+            {SIZES.map((s) => (
+              <figure><span class="lx-sz" style={`width:${s}px;height:${s}px`}><svg viewBox={first.tight} aria-hidden="true" focusable="false"><use class="z" href={`#m-${first.slug}`} /></svg></span><figcaption><span class="lx-num">{s}</span> px</figcaption></figure>
+            ))}
+          </div>
+          <a class="ask-mark lx-ask" href={first.ask || '#'} hidden={!first.ask}>Ask about this mark<span class="sr"> (opens your mail app)</span></a>
+        </div>
+      </aside>
+    </div>
+  </div>
+</Base>
+
+<style>
+  @property --an { syntax: '<number>'; inherits: true; initial-value: 0; }
+  .lx-defs { position: absolute; }
+  .lx { --rule: color-mix(in srgb, var(--carbon) 18%, transparent); --gr: var(--mat); --ink: var(--carbon); --t: 300ms; margin-top: 40px; margin-bottom: 160px; }
+  /* Light is the old page's tile ground (--mat), so a cell keeps its edge against the paper caption. */
+  .lx[data-g='dark'] { --gr: var(--carbon); --ink: var(--field); }
+
+  /* Controls: two glass capsules in one track that scrolls sideways on a narrow screen. The glass is
+     solid here (tint 100%): at the default tint a Dark row of marks under it turned the grey labels
+     to grey on grey, and the blur smeared the marks. */
+  .lx-ctl { position: sticky; top: 64px; z-index: 4; display: flex; gap: 12px; margin-bottom: 24px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; padding: 4px; margin-inline: -4px; pointer-events: none; }
+  .lx-ctl::-webkit-scrollbar { display: none; }
+  .lx-ctl .seg { --gl-tint: 100%; position: relative; top: auto; margin: 0; flex: none; pointer-events: auto; }
+  .lx-ctl .views button { display: inline-flex; align-items: center; gap: 8px; }
+  .lx-sw { width: 10px; height: 10px; box-shadow: inset 0 0 0 1px var(--rule); }
+  .lx-light { background: var(--mat); } .lx-dark { background: var(--carbon); }
+  .lx-askw { margin: -4px 12px 4px; }
+  :global(html.js) .lx-askw { display: none; }
+  html:not(.js) .lx-ctl, html:not(.js) .lx-stage { display: none; }
+  @media (pointer: coarse), (max-width: 899px) { .lx-ctl { position: relative; top: auto; } }
+
+  /* The sheet: hairline cells, the ground in the art, the caption on paper. */
+  .lx-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 40px; align-items: start; }
+  /* Fifteen marks fill whole rows: 3 across (5 rows), 5 across beside the stage from 1400 px (3 rows).
+     At 2 across the last row has one mark, so the sheet's ::after takes the empty cell and its rules. */
+  .lx-wall { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--rule); border-left: 1px solid var(--rule); }
+  @media (min-width: 1400px) { .lx-wall { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+  .lx-t, .lx-wall::after { border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+  .lx-t { display: flex; flex-direction: column; }
+  .lx-b { display: flex; flex-direction: column; width: 100%; padding: 0; border: 0; background: none; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .lx-b:focus-visible { outline-offset: -3px; }
+  /* On Dark the ring's top edge would sit carbon on carbon; a paper band under it keeps it 17:1. */
+  .lx[data-g='dark'] .lx-b:focus-visible .lx-art { box-shadow: inset 0 0 0 5px var(--field); }
+  .lx-art { display: block; aspect-ratio: 3 / 2; background: var(--gr); color: var(--ink); transition: background-color var(--t) var(--ease), color var(--t) var(--ease); }
+  .lx-art svg { width: 100%; height: 100%; }
+  .lx-cap { display: grid; padding: 10px 12px 12px; font-size: 0.875rem; line-height: 1.25rem; }
+  .lx-n { color: var(--carbon); }
+  .lx-s { color: var(--graphite); }
+  .lx-num { font-family: var(--mono); font-size: 0.875rem; font-variant-numeric: tabular-nums; }
+  @media (hover: hover) { .lx-b:hover .lx-n { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; } }
+  .lx-b[aria-pressed='true'] .lx-n { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+  .lx-b[aria-pressed='true'] .lx-art { box-shadow: inset 0 0 0 1px var(--ink); }
+
+  /* View: each use passes fill-opacity, stroke-width and --an to its paths. Fill is the finished mark;
+     Outline, 1 px strokes; Anchors, the strokes and every anchor point. The change runs in the draw's
+     order: going up, the anchors leave and then the fill comes in; going down, the fill drains first. */
+  .lx use.v { fill-opacity: 1; stroke-width: 0; --an: 0; transition: --an calc(var(--t) / 2) var(--ease) var(--d, 0ms), fill-opacity var(--t) var(--ease) calc(var(--d, 0ms) + var(--t) / 3), stroke-width 0s linear calc(var(--d, 0ms) + var(--t) * 1.33); }
+  .lx:is([data-v='outline'], [data-v='anchors']) use.v { fill-opacity: 0; stroke-width: 1px; transition: fill-opacity var(--t) var(--ease) var(--d, 0ms), stroke-width 0s, --an var(--t) var(--ease) calc(var(--d, 0ms) + var(--t) / 3); }
+  .lx[data-v='anchors'] use.v { --an: 1; }
+  /* The arrival: a mark waits as its anchors and outline until it comes into view, then fills. */
+  :global(html.motion) .lx-t:not(.in) use.v { fill-opacity: 0; stroke-width: 1px; --an: 1; transition: none; }
+  .lx-t.in:not(.done) { --t: 900ms; }
+  .now use.v, :global(html.still) .lx use.v { transition: none !important; }
+
+  /* The stage: the 400% lens, larger, with its facts. */
+  .lx-stage { display: none; }
+  .lx-plate { background: var(--gr); color: var(--ink); outline: 1px solid var(--rule); transition: background-color var(--t) var(--ease), color var(--t) var(--ease); }
+  .lx-plate .pct { background: var(--gr); color: var(--ink); } /* solid: the 72% mix read 6.8:1 (11 November) */
+  .lx-plate.on use.v { fill-opacity: 0.12; stroke-width: 1px; --an: 1; }
+  .lx-facts { padding-top: 16px; }
+  .lx-h { font: 400 clamp(1.375rem, 2vw, 1.75rem)/1.15 var(--display); letter-spacing: var(--tr-endless); }
+  .lx-st { margin-top: 4px; font-size: 0.875rem; line-height: 1.25rem; color: var(--graphite); }
+  .lx-dl { display: grid; grid-template-columns: repeat(3, auto); justify-content: start; gap: 24px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--rule); }
+  .lx-dl dt { font-size: 0.875rem; line-height: 1.25rem; color: var(--graphite); }
+  .lx-dl dd { margin: 2px 0 0; font-size: 1rem; line-height: 1.5rem; color: var(--carbon); }
+  .lx-sizes { display: flex; align-items: flex-end; gap: 16px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--rule); }
+  .lx-sizes figure { display: grid; justify-items: start; gap: 6px; }
+  .lx-sizes figcaption { font-size: 0.875rem; line-height: 1.25rem; color: var(--graphite); }
+  .lx-sz { display: block; background: var(--gr); color: var(--ink); box-shadow: 0 0 0 1px var(--rule); transition: background-color var(--t) var(--ease), color var(--t) var(--ease); }
+  .lx-sz svg { width: 100%; height: 100%; }
+  /* The small sizes are always the finished mark, whatever the sheet's view. Each def path carries a
+     non-scaling stroke for Outline; a <use> with no class left stroke-width at its initial 1, so every
+     shape wore a 1 px outline at any size: a sixteenth of the 16 px mark, which filled its counters. */
+  .lx-sz use.z { fill-opacity: 1; stroke-width: 0; --an: 0; }
+  .lx-ask { margin-top: 20px; }
+  .lx-ask[hidden] { display: none; }
+  /* On the sheet a point is 3 px, so a dense mark still reads; the stage keeps the lens's 4. */
+  .lx-wall { --aw: 3px; }
+
+  /* Wide: the stage stands beside the sheet and stays in view. Narrow: it opens under the row of the
+     mark pressed, across the sheet. */
+  @media (min-width: 1100px) {
+    :global(html.js) .lx-body { grid-template-columns: minmax(0, 1fr) clamp(340px, 30vw, 560px); }
+    .lx-stage { display: block; position: sticky; top: 136px; }
+  }
+  /* Narrow (11 November): the specimen pins to the top half under the bar and the library scrolls
+     under it, so pressing a mark never moves the page. The plate takes up to 30% of the screen, the
+     facts one short band; the small sizes wait for a wider screen. */
+  @media (max-width: 1099px) {
+    :global(html.js) .lx-stage { display: block; order: -1; position: sticky; top: 64px; z-index: 3; margin-inline: -4px; padding: 4px 4px 12px; background: var(--field); box-shadow: 0 1px 0 var(--rule); }
+    .lx-body { gap: 16px; }
+    .lx-plate { height: min(100cqw / 1.5, 30svh); aspect-ratio: auto; }
+    .lx-stage { container-type: inline-size; }
+    .lx-facts { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 16px; align-items: end; padding-top: 10px; }
+    .lx-h { font-size: 1.25rem; }
+    .lx-st { margin-top: 2px; }
+    .lx-dl { grid-row: 1 / span 2; grid-column: 2; gap: 16px; margin: 0; padding: 0; border: 0; }
+    .lx-dl dt { font-size: 0.75rem; line-height: 1rem; }
+    .lx-dl dd { font-size: 0.875rem; line-height: 1.25rem; }
+    .lx-sizes { display: none; }
+    .lx-ask { grid-column: 1 / -1; margin-top: 10px; }
+  }
+  @media (max-width: 599px) {
+    .lx-wall { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .lx-facts { display: block; }
+    .lx-dl { margin-top: 8px; gap: 24px; }
+    .lx-wall::after { content: ''; }
+    .lx-cap { padding: 8px 10px 10px; }
+    /* Both capsules fit a 360 px phone: tighter buttons, and the grounds as swatches alone (their words
+       stay their names). Nothing scrolls, so nothing clips the glass's shadow into a grey box. */
+    .lx-ctl { overflow: visible; flex-wrap: wrap; gap: 8px; }
+    .lx-ctl .seg { width: auto; }
+    .lx-ctl .views button { padding: 0 12px; }
+    .lx-ctl .views [data-g] { gap: 0; width: 48px; padding: 0; justify-content: center; }
+    .lx-gl { font-size: 0; }
+    .lx-sw { width: 14px; height: 14px; }
+  }
+</style>
+
+<script>
+  // ponytail: one listener per control group and one for the sheet; site.js already wires the stage's
+  // lens (zoom, drag, keys), so this only swaps which mark it shows.
+  const lx = document.querySelector<HTMLElement>('.lx')!
+  const wall = lx.querySelector<HTMLElement>('.lx-wall')!, stage = lx.querySelector<HTMLElement>('.lx-stage')!
+  const tiles = [...wall.querySelectorAll<HTMLElement>('.lx-t')]
+  const wide = matchMedia('(min-width: 1100px)')
+
+  // A change runs across the sheet from its top left corner, 30 ms a step; marks out of view change at once.
+  const stagger = () => {
+    const cols = getComputedStyle(wall).gridTemplateColumns.split(' ').length
+    tiles.forEach((t, i) => {
+      const r = t.getBoundingClientRect(), seen = r.bottom > 0 && r.top < innerHeight
+      t.classList.toggle('now', !seen)
+      t.style.setProperty('--d', `${((i % cols) + Math.floor(i / cols)) * 30}ms`)
+    })
+  }
+  const choose = (key: 'v' | 'g', val: string) => {
+    if (lx.dataset[key] === val) return
+    stagger()
+    lx.dataset[key] = val
+    lx.querySelectorAll<HTMLElement>(`.lx-ctl [data-${key}]`).forEach((b) => b.setAttribute('aria-pressed', String(b.dataset[key] === val)))
+  }
+  lx.querySelector('.lx-ctl')!.addEventListener('click', (e) => {
+    const b = (e.target as Element).closest<HTMLElement>('button')
+    if (b?.dataset.v) choose('v', b.dataset.v)
+    else if (b?.dataset.g) choose('g', b.dataset.g)
+  })
+  // O toggles Outline, as in a vector app; never while typing or with a modifier held.
+  let back = 'fill'
+  addEventListener('keydown', (e) => {
+    if (e.key.toLowerCase() !== 'o' || e.metaKey || e.ctrlKey || e.altKey || (e.target as Element).closest('input, textarea, select, [contenteditable]')) return
+    if (lx.dataset.v === 'outline') choose('v', back)
+    else { back = lx.dataset.v!; choose('v', 'outline') }
+  })
+
+  // The stage: the pressed mark, its facts and its small sizes.
+  const plate = stage.querySelector<HTMLElement>('.lx-plate')!
+  const show = (b: HTMLElement) => {
+    const d = b.dataset, href = `#m-${d.k}`
+    if (plate.classList.contains('on')) plate.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })) // back to 100%
+    const inner = plate.querySelector('.lx-in')!
+    inner.setAttribute('viewBox', d.box!)
+    const u = inner.querySelector('use')!
+    u.setAttribute('href', href); u.setAttribute('transform', d.shift!)
+    plate.dataset.n = d.n
+    stage.querySelectorAll('.lx-sz svg').forEach((s) => { s.setAttribute('viewBox', d.tight!); s.querySelector('use')!.setAttribute('href', href) })
+    stage.querySelectorAll('.lx-sn').forEach((n) => (n.textContent = d.name!))
+    stage.querySelector('.lx-st')!.textContent = d.s!
+    stage.querySelectorAll<HTMLElement>('[data-f]').forEach((f) => (f.textContent = d[f.dataset.f!]!))
+    const ask = stage.querySelector<HTMLAnchorElement>('.lx-ask')!
+    ask.hidden = !d.ask; if (d.ask) ask.href = d.ask
+  }
+  // The stage always shows the pressed mark: beside the sheet when wide, pinned above it when narrow
+  // (CSS). A press never moves the page.
+  wall.addEventListener('click', (e) => {
+    const b = (e.target as Element).closest<HTMLElement>('.lx-b')
+    if (!b) return
+    wall.querySelectorAll('.lx-b').forEach((o) => o.setAttribute('aria-pressed', String(o === b)))
+    show(b)
+  })
+  wall.querySelector('.lx-b')!.setAttribute('aria-pressed', 'true')
+  // ?mark=<slug> (home's Marks links here) opens on that mark, as if pressed.
+  const want = new URLSearchParams(location.search).get('mark')
+  const pick = want && [...wall.querySelectorAll<HTMLElement>('.lx-b')].find((b) => b.dataset.k === want)
+  if (pick) { pick.click(); if (wide.matches) pick.scrollIntoView({ block: 'center' }) }
+
+  // Each mark fills in as it comes into view, once.
+  if (document.documentElement.classList.contains('motion') && 'IntersectionObserver' in window) {
+    const io = new IntersectionObserver((es) => {
+      let k = 0
+      for (const en of es) if (en.isIntersecting) {
+        const t = en.target as HTMLElement
+        io.unobserve(t); t.style.setProperty('--d', `${80 * k++}ms`); t.classList.add('in')
+        setTimeout(() => t.classList.add('done'), 1400 + 80 * k)
+      }
+    }, { threshold: 0.5 })
+    tiles.forEach((t) => io.observe(t))
+  } else tiles.forEach((t) => t.classList.add('in', 'done'))
+</script>

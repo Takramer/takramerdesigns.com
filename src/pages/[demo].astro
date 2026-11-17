@@ -1,0 +1,29 @@
+---
+import Base from '../layouts/Base.astro'
+import DEMO from '../data/demo.json'
+// The demo page (/changes): the latest change and the pages it touches. Built only by `npm run demo`
+// (PUBLIC_DEMO=1), which deploys to the one fixed address demo.takramerdesigns.com (the demo branch of the Pages project); a production build
+// makes no page here. Rewrite src/data/demo.json before each demo deploy, so it only ever shows the
+// latest change.
+export function getStaticPaths() {
+  return import.meta.env.PUBLIC_DEMO === '1' ? [{ params: { demo: 'changes' } }] : []
+}
+---
+<Base title="Latest change | TAKramer Designs" description="The latest change, on the demo site." page="changes" ask={false} noindex>
+  <div class="w page-head hub">
+    <h1 class="title">Latest change</h1>
+    <p class="lede">{DEMO.change}</p>
+    <p class="label">{DEMO.date}</p>
+    <ul>{DEMO.pages.map(([name, href, note]) => <li><a href={href}><b>{name}</b><span>{note}</span></a></li>)}</ul>
+  </div>
+</Base>
+<style>
+  .hub .lede { margin-top: 32px; max-width: var(--measure); }
+  .hub .label { margin-top: 8px; color: var(--graphite); }
+  .hub ul { margin-top: 48px; border-top: 1px solid var(--carbon); }
+  .hub a { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 16px; padding: 14px 0; border-bottom: 1px solid color-mix(in srgb, var(--carbon) 18%, transparent); text-decoration: none; }
+  .hub a:is(:hover, :focus-visible) { background: var(--mat); }
+  .hub b { font-weight: 500; }
+  .hub span { color: var(--graphite); }
+  @media (max-width: 599px) { .hub a { grid-template-columns: 1fr; gap: 2px; } }
+</style>

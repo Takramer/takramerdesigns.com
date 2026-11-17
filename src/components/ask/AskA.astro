@@ -1,0 +1,115 @@
+---
+import { EMAIL, MAILTO, SOCIAL, RESUME_PDF } from '../../data/site'
+import Arrow from '../Arrow.astro'
+import Ending from '../Ending.astro'
+// The contact block above the footer (11 November): the headline on the left; on the right one
+// action leads, the address itself, which opens the reader's mail app. Under it one row: the resume,
+// a glass button (.button, which Liquid.astro picks up), and the profiles as quiet links. `context`
+// is an optional line over the address. `h1` makes it the head of /contact: the title's own heading,
+// its point, and the page's top spacing.
+interface Props { context?: string; h1?: boolean }
+const { context, h1 = false } = Astro.props
+const [user, domain] = EMAIL.split('@')
+const dot = domain.lastIndexOf('.')
+---
+<section class:list={['aa w', { 'aa-top': h1 }]} aria-labelledby="aa-h">
+  {h1
+    ? <h1 id="aa-h" class="aa-h rise" style="--i: 0"><Ending text="Let’s talk." /></h1>
+    : <h2 id="aa-h" class="aa-h rise" style="--i: 0">Let’s talk.</h2>}
+  <div class="aa-body">
+    {context && <p class="aa-ctx rise" style="--i: 1">{context}</p>}
+    <div class="aa-act">
+      <a class="aa-mail" href={MAILTO}>
+        <span class="aa-addr"><span class="aa-in">{user}@{domain.slice(0, dot)}<span class="aa-dot">.</span>{domain.slice(dot + 1)}</span></span>
+        <span class="aa-go rise" style="--i: 2"><span class="aa-ink"><span class="aa-rule"></span><Arrow /></span></span>
+        <span class="sr"> (opens your mail app)</span>
+      </a>
+      <div class="aa-row rise" style="--i: 3">
+        <a class="button aa-cv" href={RESUME_PDF} download>Download resume<Arrow down /><span class="sr"> (PDF)</span></a>
+        <ul class="aa-pro" aria-label="Profiles">
+          {SOCIAL.map(([n, h]) => <li><a href={h} target="_blank" rel="me noopener">{n}<Arrow out /><span class="sr"> (opens in a new tab)</span></a></li>)}
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .aa { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); column-gap: var(--g); align-items: start; margin-top: 160px; padding-bottom: 160px; }
+  .aa-top { margin-top: 0; padding-block: 40px 0; }
+  .aa-h { grid-column: 1 / 11; font: 400 clamp(3.5rem, 6.7vw, 6rem)/0.92 var(--display); line-height: round(up, 0.91em, 4px); letter-spacing: var(--tr-endless); text-box: trim-start cap alphabetic; }
+  .aa-body { grid-column: 12 / 25; container-type: inline-size; }
+  .aa-ctx { max-width: var(--measure); margin-bottom: 24px; font-size: 1.25rem; line-height: 2rem; color: var(--graphite); text-box: trim-start cap alphabetic; }
+  /* The address and the row under it share one width, the wider of the two, so the profiles end
+     where the arrow does. */
+  .aa-act { width: fit-content; max-width: 100%; }
+
+  /* The address: 48 px where the column allows, else as large as one line holds. Untracked it is
+     13.29 em; from 40 px up --tr-endless adds 0.01 em a letter (13.54 em), below 40 px 1.2 px - 0.02 em
+     a letter (12.79 em + 30 px). The smaller sum wins, 0.5% spare. Clipped at its foot only, so the
+     entrance can rise into the line while ascenders above the trimmed cap line still show. */
+  .aa-mail { display: flex; flex-direction: column; color: var(--carbon); text-decoration: none; -webkit-tap-highlight-color: transparent; }
+  .aa-mail:focus-visible { outline-offset: 8px; }
+  .aa-addr { display: block; clip-path: inset(-1em -1em 0 -1em); padding-bottom: 0.08em; font: 400 min(3rem, 100cqw / 13.62, (100cqw - 30px) / 12.86)/1.1 var(--display); letter-spacing: var(--tr-endless); white-space: nowrap; text-box: trim-start cap alphabetic; }
+  .aa-in { display: block; }
+  /* Its full stop turns into the site's point on a hover or a focus. An empty inline box sits on the
+     baseline: pulled back over the glyph, it starts where Endless draws its stop (0.033 em from the
+     letter, as .point does) and gives the advance back after it, tracking included. The glyph stays
+     in the text, so a copy still reads ".com". */
+  .aa-dot::after { content: ""; display: inline-block; width: 0.146em; height: 0.146em; margin: 0 0.018em 0 -0.164em; background: var(--signal); opacity: 0; transition: opacity 240ms var(--ease); }
+
+  /* Under it the line that becomes the arrow. The arrow is drawn on a 2 px stroke at 20 by 14, so the
+     line is 2 px too, on the arrow's own axis (7 of 14), and runs straight into its shaft. At rest only
+     a faint track shows. On a hover or a focus one clip uncovers line and arrow together, left to
+     right, in 480 ms on the site's curve: the line runs out, slows, and the head forms at its end as
+     the clip passes it, in the last quarter. Leaving, the same clip runs back. */
+  .aa-go { display: block; height: 14px; margin-top: 12px; background: linear-gradient(var(--aa-track), var(--aa-track)) 0 6px / 100% 2px no-repeat; --aa-track: color-mix(in srgb, var(--carbon) 16%, transparent); }
+  .aa-ink { display: flex; align-items: center; height: 14px; clip-path: inset(0 100% 0 0); }
+  .aa-rule { flex: 1; height: 2px; background: currentColor; }
+  .aa-ink :global(.arr) { flex: none; width: 20px; height: 14px; }
+  .aa-mail:is(:hover, :focus-visible) .aa-ink { clip-path: inset(0); }
+  :global(.motion) .aa-ink { transition: clip-path 480ms var(--ease); }
+  .aa-mail:is(:hover, :focus-visible) .aa-dot::after { opacity: 1; }
+  .aa-mail:is(:hover, :focus-visible) .aa-dot { color: transparent; }
+
+  /* The resume and the profiles on one line, centred on one axis; the profiles end under the arrow.
+     A narrow column wraps them, the resume first. */
+  .aa-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 32px; margin-top: 40px; }
+  .aa-cv { margin-top: 0; }
+  .aa-cv :global(.arr) { width: 10px; height: 10px; }
+  .aa-pro { display: flex; flex-wrap: wrap; column-gap: 24px; margin-left: auto; }
+  .aa-pro a { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: 1rem; line-height: 1.5rem; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.22em; text-decoration-color: color-mix(in srgb, var(--carbon) 35%, transparent); transition: text-decoration-color 240ms var(--ease); }
+  .aa-pro a:hover { text-decoration-color: var(--carbon); }
+
+  /* The entrance: the lines settle in 480 ms, 60 ms apart, and the address rises into its line in
+     600 ms. Only with motion on (html.motion); a still page or no script shows it all at once. */
+  .rise { transition: opacity 480ms var(--ease) calc(var(--i) * 60ms), translate 480ms var(--ease) calc(var(--i) * 60ms); }
+  .aa-in { transition: translate 600ms var(--ease) 60ms; }
+  :global(.motion) .aa:not(.in) .rise { opacity: 0; translate: 0 16px; }
+  :global(.motion) .aa:not(.in) .aa-in { translate: 0 1.3em; } /* past the ascenders over the trimmed cap line */
+  @media print { .aa .rise, .aa .aa-in { opacity: 1 !important; translate: none !important; } }
+
+  /* Under 1200 px the right column cannot hold the row on one line: the block stacks. */
+  @media (max-width: 1199px) {
+    .aa { display: block; }
+    .aa-body { margin-top: 48px; }
+  }
+  @media (max-width: 899px) {
+    .aa:not(.aa-top) { margin-top: 96px; padding-bottom: 96px; }
+    .aa-h { font-size: 3.5rem; }
+    .aa-body { margin-top: 40px; }
+    .aa-ctx { font-size: 1.125rem; line-height: 1.75rem; }
+    .aa-row { margin-top: 32px; }
+    .aa-pro { margin-left: 0; }
+  }
+</style>
+
+<script>
+  // The entrance only: it starts once a quarter of the block is in view.
+  const html = document.documentElement
+  for (const el of document.querySelectorAll<HTMLElement>('.aa')) {
+    if (!html.classList.contains('motion') || !('IntersectionObserver' in window)) { el.classList.add('in'); continue }
+    const io = new IntersectionObserver(([en]) => { if (en.isIntersecting) { io.disconnect(); el.classList.add('in') } }, { threshold: 0.25 })
+    io.observe(el)
+  }
+</script>

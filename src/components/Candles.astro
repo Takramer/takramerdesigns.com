@@ -1,0 +1,24 @@
+---
+import type { Candle } from '../lib/marks'
+// Nydex's candles as a chart that prints itself (lib/marks.ts, candles(), says how a candle forms).
+// The markup is the finished mark, so without script, or with reduced motion, it is simply the mark.
+// site.js (candlesAt) replays each candle's price path on the build's --p: candle i trades from
+// span[0] to span[1] of the build, one after another, each for the same stretch of time.
+// price: the signal-coloured line that follows the price as it trades (the case page only).
+const { cs, span, price = false } = Astro.props as { cs: Candle[]; span: [number, number]; price?: boolean }
+const r2 = (n: number) => +n.toFixed(2)
+const line = cs.flatMap((c) => [`${r2(c.x + c.w / 2)},${c.from}`, `${r2(c.x + c.w / 2)},${c.to}`]).join(' ')
+---
+<g class="d-candles" data-span={span.join(',')}>
+  {cs.map((c) => {
+    const top = Math.min(c.from, c.to), foot = Math.max(c.from, c.to)
+    return (
+      <g class="cdl" data-path={c.path.join(',')} data-at={c.at.join(',')} data-hi={c.hi} data-lo={c.lo} data-mid={r2(c.x + c.w / 2)}>
+        <rect class="wt" x={c.kx} y={c.hi} width={c.kw} height={r2(top - c.hi)} />
+        <rect class="wb" x={c.kx} y={foot} width={c.kw} height={r2(c.lo - foot)} />
+        <rect class="body" x={c.x} y={top} width={c.w} height={r2(foot - top)} />
+      </g>
+    )
+  })}
+  {price && <polyline class="d-price" points={line} />}
+</g>

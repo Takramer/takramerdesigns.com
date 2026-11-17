@@ -1,0 +1,269 @@
+---
+// The footer (chosen 11 November): the TAKD mark drawn in its own source. At build time sharp rasterizes the
+// real SVG to a grid of cells; a cell the mark covers takes the next character of the mark's path
+// data, a cell on its edge takes the stroke that follows the edge (| / - \). Three grids, one per
+// width, so the art never scrolls sideways. A script settles the code in a wave on arrival, flips
+// small clusters at rest, and makes the pointer his loupe: inside it the characters give way to the
+// true vector mark with its anchor points. Without script, or under reduced motion, the art stands still.
+// Behind the mark, a flowing gradient in Charlotte's colours of the hour and weather (Flow.astro); in
+// the text column, "Charlotte now" (Now.astro): the sun map with its time, weather, sun and moon.
+import sharp from 'sharp'
+import { LEGAL, MAILTO, PAGES, SOCIAL } from '../../data/site'
+import Arrow from '../Arrow.astro'
+import Flow from './Flow.astro'
+import Now from './Now.astro'
+import { shapes } from '../../lib/marks'
+import raw from '../../assets/takd-mark.svg?raw'
+
+// map={false} keeps the Charlotte lines and drops the map (/contact, which shows it large).
+const { scripture = true, map = true } = Astro.props as { scripture?: boolean; map?: boolean }
+const m = shapes(raw)
+const [, , VW, VH] = m.view
+const ADV = 0.602 // Menlo's advance in em; the script corrects for any other monospace
+// ponytail: minus signs leave the stream so "-" can mean a flat edge; the digits are the real ones.
+const STREAM = m.paths.join('').replace(/[\s,-]/g, '')
+
+async function grid(cols: number, pad = 4) {
+  const cw = (VW + 2 * pad) / cols, ch = cw / ADV
+  const rows = Math.round((VH + 2 * pad) / ch)
+  const H = rows * ch, top = -(H - VH) / 2
+  const SX = 6, SY = 10 // samples per cell
+  const W = cols * SX
+  const s = raw.replace(/viewBox="[^"]*"/, `viewBox="${-pad} ${top} ${VW + 2 * pad} ${H}" width="${W}" height="${rows * SY}" preserveAspectRatio="none"`)
+  const a = await sharp(Buffer.from(s)).ensureAlpha().extractChannel(3).raw().toBuffer()
+  const cell = (r: number, c: number) => {
+    let sum = 0, mx = 0, my = 0
+    for (let y = 0; y < SY; y++) for (let x = 0; x < SX; x++) {
+      const v = a[(r * SY + y) * W + c * SX + x] / 255
+      sum += v; mx += v * (x + 0.5 - SX / 2); my += v * (y + 0.5 - SY / 2)
+    }
+    return [sum / (SX * SY), mx, my]
+  }
+  const V = Array.from({ length: rows }, (_, r) => Array.from({ length: cols }, (_, c) => cell(r, c)))
+  const near = (r: number, c: number) => [-1, 0, 1].some((i) => [-2, -1, 0, 1, 2].some((j) => (V[r + i]?.[c + j]?.[0] ?? 0) >= 0.1))
+  let out = '', fld = '', k = 0
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const [v, mx, my] = V[r][c]
+      // The drafting ground under the mark: a dot every third column and second row, a cross every
+      // twelfth and sixth, clear of the ink by a cell.
+      fld += near(r, c) ? ' ' : c % 12 === 6 && r % 6 === 3 ? '+' : c % 3 === 0 && r % 2 === 1 ? '·' : ' '
+      if (v < 0.1) out += ' '
+      else if (v >= 0.8) out += STREAM[k++ % STREAM.length]
+      else {
+        // The ink's centre of mass points across the edge; the glyph runs along it.
+        const t = ((Math.atan2(my, mx * 1.66) * 180) / Math.PI + 270) % 180
+        out += t < 22.5 || t >= 157.5 ? '-' : t < 67.5 ? '\\' : t < 112.5 ? '|' : '/'
+      }
+    }
+    if (r < rows - 1) { out += '\n'; fld += '\n' }
+  }
+  const r2 = (n: number) => +n.toFixed(3)
+  return { cols, rows, text: out, fld: fld.replace(/ +$/gm, ''), box: [-pad, top, VW + 2 * pad, H].map(r2).join(' ') }
+}
+// The phone grid runs to the window's edges; 6.5 units of margin put the mark on the text's left edge.
+const grids = await Promise.all([grid(168), grid(128), grid(88, 6.5)])
+---
+<footer class="foot fa">
+  <Flow />
+  <div class="w fa-grid">
+    <div class="fa-art" aria-hidden="true">
+      {grids.map((g, i) => (
+        <div class={`fa-g fa-g${i}`} style={`--c:${g.cols};aspect-ratio:${+(g.cols * ADV).toFixed(3)}/${g.rows}`}>
+          <pre class="fa-f" set:text={g.fld} /><pre class="fa-m" data-box={g.box} set:text={g.text} /><pre class="fa-o"></pre>
+        </div>
+      ))}
+      <svg class="fa-vec" viewBox={grids[0].box} preserveAspectRatio="none">{m.paths.map((d) => <path class="ink" d={d} />)}<path class="anchors" d={m.anchors} /></svg>
+      <i class="fa-ring"></i>
+    </div>
+
+    <div class="fa-text">
+      <p class="fa-sign"><span class="fa-n">Thomas Kramer<span class="point" aria-hidden="true"></span></span><span class="fa-r">Brand and product designer who builds what he designs.</span></p>
+      <div class="fa-cols">
+        <nav aria-labelledby="fa-pages"><p class="label" id="fa-pages">Pages</p><ul class="list">{PAGES.map(([n, h]) => <li><a href={h}>{n}</a></li>)}</ul></nav>
+        <div><p class="label" id="fa-else">Profiles</p><ul class="list" aria-labelledby="fa-else">{SOCIAL.map(([n, h]) => <li><a href={h} target="_blank" rel="me noopener">{n}<Arrow out /><span class="sr"> (opens in a new tab)</span></a></li>)}<li><a href={MAILTO}>Email<span class="sr"> Thomas (opens your mail app)</span></a></li></ul></div>
+      </div>
+      <div class="fa-base">
+        <div class="fa-sun"><Now map={map} /></div>
+        {scripture && <p class="verse">Inspired by the original Creator.<span class="fa-q"> “In the beginning, God created the heavens and the earth.”</span> Genesis 1:1 ESV</p>}
+        <p class="copyright">© 2026 Thomas Kramer{LEGAL.map(([n, h]) => <> <span class="nw">· <a class="legal" href={h}>{n}</a></span></>)}</p>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<style>
+  @property --fa-r { syntax: '<length>'; inherits: true; initial-value: 0px; }
+  .foot.fa {
+    --ink: var(--field); --dim: #B3B1AC; /* 8.8:1 on carbon */
+    position: relative; isolation: isolate; padding-block: 64px 40px; background: var(--carbon); color: var(--ink);
+  }
+  .fa :focus-visible { outline-color: var(--ink); }
+  .fa-grid { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--g); align-items: stretch; }
+  .fa-text { grid-column: 1 / 5; grid-row: 1; display: flex; flex-direction: column; gap: 32px; }
+  .fa-art { grid-column: 5 / -1; grid-row: 1; align-self: start; /* as tall as the art, so the lens's vector lies on the type when the words run taller */ position: relative; container-type: inline-size; overflow: clip; --R: 8cqw; }
+
+  /* The art: three grids, one shown by the box's own width. */
+  .fa-g { display: none; position: relative; overflow: clip; }
+  .fa-f, .fa-o { position: absolute; top: 0; left: 0; }
+  .fa-f { opacity: 0.32; }
+  .fa-live .fa-f { animation: fa-pulse 5s ease-in-out infinite alternate; }
+  @keyframes fa-pulse { to { opacity: 0.2; } }
+  .fa-g .fa-o { color: var(--signal); }
+  @container (min-width: 760px) { .fa-g0 { display: block; } }
+  @container (min-width: 520px) and (max-width: 759.98px) { .fa-g1 { display: block; } }
+  @container (max-width: 519.98px) { .fa-g2 { display: block; } }
+  .fa-g pre {
+    width: max-content; margin: 0; transform-origin: 0 0;
+    font: 400 calc(100cqw / (var(--c) * 0.602))/1 Menlo, ui-monospace, monospace; letter-spacing: 0;
+    color: var(--ink); user-select: none;
+  }
+  .fa-on :is(.fa-m, .fa-o) { mask-image: radial-gradient(circle var(--fa-r) at var(--x) var(--y), transparent calc(var(--fa-r) - 3px), #000 var(--fa-r)); }
+  .fa-vec, .fa-ring { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0; }
+  .fa-vec .ink { fill: var(--ink); }
+  .fa-vec .anchors { fill: none; stroke: var(--signal); stroke-width: 5px; stroke-linecap: square; vector-effect: non-scaling-stroke; }
+  .fa-on .fa-vec { opacity: 1; mask-image: radial-gradient(circle var(--fa-r) at var(--x) var(--y), #000 calc(var(--fa-r) - 3px), transparent var(--fa-r)); }
+  .fa-on .fa-ring { opacity: 1; background: radial-gradient(circle calc(var(--fa-r) + 1px) at var(--x) var(--y), transparent calc(var(--fa-r) - 1px), var(--signal) var(--fa-r), transparent calc(var(--fa-r) + 1px)); }
+  .fa-art { transition: --fa-r 420ms var(--ease); }
+  .fa-art.fa-on { --fa-r: var(--R); }
+
+  /* The words. */
+  .fa-sign { display: block; }
+  .fa-n { display: block; font: 400 clamp(2.25rem, 3.4vw, 3rem)/1 var(--display); letter-spacing: var(--tr-endless); }
+  .fa-r { display: block; margin-top: 16px; max-width: 20em; font-size: 1.125rem; line-height: 1.75rem; color: var(--dim); }
+  .fa-cols { display: grid; grid-template-columns: 1fr 1fr; column-gap: var(--g); }
+  .fa .label, .fa .verse, .fa .copyright { color: var(--dim); }
+  .fa-base { margin-top: auto; }
+  .fa-sun { margin-bottom: 24px; }
+  .fa-base .copyright { margin-top: 8px; }
+  .fa .verse { max-width: 26em; }
+
+  /* Past 1600 px the mark at eight columns outgrows the window's height; seven keep it near 740 px. */
+  /* Under 1280 px four columns are narrower than the map; five hold it. */
+  @media (min-width: 1600px), (min-width: 900px) and (max-width: 1279px) { .fa-text { grid-column: 1 / 6; } .fa-art { grid-column: 6 / -1; } }
+  @media (max-width: 899px) {
+    .foot.fa { padding-block: 56px 32px; }
+    .fa-grid { grid-template-columns: minmax(0, 1fr); row-gap: 48px; }
+    .fa-art, .fa-text { grid-column: 1; grid-row: auto; }
+  }
+  /* Phones keep the name, the links, Charlotte's one line, the verse's first sentence and the legal
+     line; the mark, the role line, the map and the quotation go. The gradient alone is the band at
+     the top, faded out before the name. */
+  @media (max-width: 599px) {
+    .fa-art, .fa-r, .fa-q { display: none; }
+    .foot.fa { padding-block: 104px 24px; }
+    .fa-text { gap: 28px; }
+    .fa-sun { margin-bottom: 16px; }
+  }
+</style>
+
+<script>
+  // The art comes alive only in view, in a visible tab, and never under reduced motion. Every cell
+  // that moves flips through a few glyphs and lands back on its true one: the mark's own path data
+  // inside, the edge strokes on the outline. Rows are separate text nodes; only rows that changed
+  // are rewritten, at most 30 times a second.
+  const art = document.querySelector<HTMLElement>('.fa-art')
+  if (art && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const vec = art.querySelector('svg')!
+    const IN = '0123456789.LMZhvc', ED = '-\\|/'
+    const pick = (s: string) => s[(Math.random() * s.length) | 0]
+    const ease = (p: number) => 1 - (1 - Math.min(1, p)) ** 3
+    const gs = [...art.querySelectorAll<HTMLElement>('.fa-g')].map((box) => {
+      const m = box.querySelector<HTMLElement>('.fa-m')!, o = box.querySelector<HTMLElement>('.fa-o')!
+      const lines = m.textContent!.split('\n'), rows = lines.length, cols = lines[0].length
+      const cur = lines.map((l) => [...l]), og = lines.map((l) => [...l.replace(/./g, ' ')])
+      const nodes = (p: HTMLElement, a: string[][]) => { p.textContent = ''; return a.map((r, i) => p.appendChild(document.createTextNode(r.join('') + (i < rows - 1 ? '\n' : '')))) }
+      const at = new Int32Array(rows * cols).fill(-1), R: number[] = [], C: number[] = [], T: string[] = []
+      cur.forEach((l, r) => l.forEach((ch, c) => { if (ch !== ' ') { at[r * cols + c] = R.length; R.push(r); C.push(c); T.push(ch) } }))
+      return { box, m, rows, cols, cur, og, nm: nodes(m, cur), no: nodes(o, og), at, R, C, T, e: new Float64Array(R.length), act: [] as number[], lit: [] as number[][] }
+    })
+    let g = gs[0], raf = 0, last = 0, n = 0, x = 0, y = 0, px = -1, py = 0, sweep = -1, hover = false, seen = 0, scan = 0, nextScan = 0, tapEnd = 0
+    const rings: number[][] = []
+    const set = () => { art.style.setProperty('--x', x + 'px'); art.style.setProperty('--y', y + 'px') }
+    const flip = (k: number, until: number) => { if (!g.e[k]) g.act.push(k); if (until > g.e[k]) g.e[k] = until }
+    // Fit the shown grid to its box exactly, whatever monospace the reader's system draws it in.
+    const fit = () => {
+      g = gs.find((o) => o.m.offsetParent) || g
+      const t = `scale(${g.box.clientWidth / g.m.offsetWidth},${g.box.clientHeight / g.m.offsetHeight})`
+      g.box.querySelectorAll('pre').forEach((p) => (p.style.transform = t))
+      vec.setAttribute('viewBox', g.m.dataset.box!)
+    }
+    const tick = (t: number) => {
+      const { R, C, T, e, at, cols, rows, cur, og } = g, rr = new Set<number>(), ro = new Set<number>()
+      const cw = art.clientWidth / cols, ch = cw / 0.602
+      n++
+      if (Math.random() < 0.2) { // a small cluster flips somewhere on the mark
+        const k0 = (Math.random() * R.length) | 0
+        for (let i = -1; i < 2; i++) for (let j = -2; j < 3; j++) {
+          const k = at[(R[k0] + i) * cols + C[k0] + j]
+          if (k >= 0 && R[k] === R[k0] + i && Math.random() < 0.5) flip(k, t + 110 + Math.random() * 180)
+        }
+      }
+      if (!scan && seen && t > nextScan) scan = t
+      if (scan) { // now and then a slanted line passes through the letters
+        const span = cols + rows * 0.6 + 6, a = ((t - scan) / 2600) * span - rows * 0.6 - 3, b = a - span / 78
+        for (let k = 0; k < R.length; k++) { const u = C[k] + R[k] * 0.6; if (u < a && u >= b) flip(k, t + 120 + Math.random() * 160) }
+        if (a > cols + 3) { scan = 0; nextScan = t + 6000 + Math.random() * 5000 }
+      }
+      for (let q = rings.length; q--;) { // a click or tap sends a ring of flips across the mark
+        const [cx, cy, t0, prev] = rings[q], rad = ease((t - t0) / 1100) * cols * 1.2
+        for (let k = 0; k < R.length; k++) { const d = Math.hypot(C[k] - cx, (R[k] - cy) / 0.602); if (d >= prev && d < rad) flip(k, t + 140 + Math.random() * 180) }
+        rings[q][3] = rad
+        if (t - t0 > 1100) rings.splice(q, 1)
+      }
+      if (px >= 0) { // the loupe's wake: cells it passes scramble, then settle by distance
+        const W = (art.clientWidth * 0.12 * 1.7) / cw, c0 = x / cw, r0 = y / ch
+        for (let r = Math.max(0, (r0 - W * 0.602) | 0); r <= Math.min(rows - 1, r0 + W * 0.602); r++)
+          for (let c = Math.max(0, (c0 - W) | 0); c <= Math.min(cols - 1, c0 + W); c++) {
+            const k = at[r * cols + c], d = Math.hypot(c - c0, (r - r0) / 0.602) / W
+            if (k >= 0 && d < 1) flip(k, t + 200 + 420 * (1 - d) * (0.5 + 0.5 * Math.random()))
+          }
+        px = -1
+      }
+      for (const l of g.lit.splice(0)) { og[l[0]][l[1]] = ' '; ro.add(l[0]); if (cur[l[0]][l[1]] === ' ') { cur[l[0]][l[1]] = T[l[2]]; rr.add(l[0]) } }
+      for (let i = g.act.length; i--;) {
+        const k = g.act[i], r = R[k], c = C[k], edge = ED.includes(T[k])
+        if (t >= e[k]) {
+          e[k] = 0; g.act[i] = g.act[g.act.length - 1]; g.act.pop(); cur[r][c] = T[k]
+          // Now and then a cell lands in orange for a moment: a handful at most, so orange stays a marker.
+          if (g.lit.length < 4 && Math.random() < 0.025) { og[r][c] = T[k]; cur[r][c] = ' '; g.lit.push([r, c, k]); ro.add(r) }
+        } else if ((n + k) & 1) cur[r][c] = edge ? ED[(ED.indexOf(T[k]) + (Math.random() < 0.5 ? 1 : 3)) % 4] : pick(IN)
+        rr.add(r)
+      }
+      const nl = (r: number) => (r < rows - 1 ? '\n' : '')
+      rr.forEach((r) => (g.nm[r].data = cur[r].join('') + nl(r)))
+      ro.forEach((r) => (g.no[r].data = og[r].join('') + nl(r)))
+    }
+    const frame = (t: number) => {
+      raf = requestAnimationFrame(frame)
+      if (sweep >= 0) { // the entrance: the loupe leads a wave that settles the code left to right
+        if (!sweep) { sweep = t; gs.forEach((o) => o.R.forEach((_, k) => (o.e[k] = t + 1150 * (1 - (1 - o.C[k] / o.cols) ** (1 / 3)) + 60 + Math.random() * 140))) }
+        const p = (t - sweep) / 1200
+        x = art.clientWidth * (ease(p) * 1.16 - 0.08); y = art.clientHeight * (0.5 - 0.16 * Math.sin(p * 6.283)); set()
+        if (p >= 1) { sweep = -1; if (!hover) art.classList.remove('fa-on') }
+      }
+      if (tapEnd && t > tapEnd) { tapEnd = 0; if (!hover) art.classList.remove('fa-on') }
+      if (t - last >= 33) { last = t; tick(t) }
+    }
+    const run = () => { cancelAnimationFrame(raf); raf = seen === 1 && !document.hidden ? requestAnimationFrame(frame) : 0; art.classList.toggle('fa-live', !!raf) }
+    new IntersectionObserver(([en]) => {
+      if (!seen && en.isIntersecting) { fit(); gs.forEach((o) => o.R.forEach((_, k) => { o.e[k] = Infinity; o.act.push(k) })) } // hold every cell in a flip until the wave
+      seen = en.isIntersecting ? 1 : seen && 2
+      if (seen === 1 && sweep === -1 && en.intersectionRatio > 0.4 && !nextScan) { sweep = 0; nextScan = performance.now() + 4000; art.classList.add('fa-on') }
+      run()
+    }, { threshold: [0, 0.4] }).observe(art)
+    document.addEventListener('visibilitychange', run)
+    new ResizeObserver(fit).observe(art)
+    const aim = (e: MouseEvent) => { const r = art.getBoundingClientRect(); x = e.clientX - r.left; y = e.clientY - r.top; set() }
+    art.addEventListener('pointermove', (e) => {
+      if (e.pointerType === 'touch' || sweep >= 0) return
+      aim(e); px = x; hover = true; art.classList.add('fa-on')
+    })
+    art.addEventListener('pointerleave', () => { hover = false; art.classList.remove('fa-on') })
+    art.addEventListener('click', (e) => {
+      aim(e); const cw = art.clientWidth / g.cols
+      rings.push([x / cw, y / (cw / 0.602), performance.now(), 0])
+      if (!hover) { art.classList.add('fa-on'); tapEnd = performance.now() + 900 }
+    })
+  }
+</script>

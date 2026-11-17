@@ -1,0 +1,317 @@
+---
+import Base from '../../layouts/Base.astro'
+import Ending from '../../components/Ending.astro'
+import Arrow from '../../components/Arrow.astro'
+import Frame from '../../components/Frame.astro'
+import Weeks from '../../components/Weeks.astro'
+import Draw from '../../components/Draw.astro'
+import Proof from '../../components/Proof.astro'
+import Sheet from '../../components/Sheet.astro'
+import Contents from '../../components/Contents.astro'
+import { SHEETS } from '../../data/sheets'
+import { PROJECTS, BY } from '../../data/projects'
+import { SITE } from '../../data/site'
+import { hero, thumb, plate, standIn, source, SIZES } from '../../lib/img'
+import sharp from 'sharp'
+
+// A case page (07 5.4; 10-copy 2; design sweep, 11 November): the link back to Work and the number
+// above the title; the hero beside the claim and the lede, the facts in a strip under both; then the
+// parts in the order a reader skims them: Overview (the problem, what changed), Results (figures,
+// outcomes), then the chapters, each story section with the plates that show it, the mark's
+// construction among them, then the prototype. No next case (Thomas, 1 November).
+export function getStaticPaths() {
+  return PROJECTS.map((p) => ({ params: { slug: p.slug } }))
+}
+const p = BY[Astro.params.slug!]
+const [h, t] = await Promise.all([hero(p.thumb), thumb(p.thumb)])
+const visit = [...(p.links ?? []), ...(p.prototypes ?? []).map(([l, u]): [string, string] => [`Open the ${l.toLowerCase()} prototype in Figma`, u])]
+// A mockup's device sits inside a transparent canvas that shots.so pads unevenly (a phone keeps 15%
+// of its height empty under it for the shadow). Measure the solid part once, at build, so a desktop
+// and a phone side by side centre on what shows, and a label starts under the device's left edge.
+// ponytail: sharp comes with Astro, not package.json; add it there if Astro ever drops it.
+const insets = new Map<string, Promise<{ t: number; b: number; l: number; w: number }>>()
+const inset = (src: string) => {
+  if (!src.includes('/mock/')) return Promise.resolve({ t: 0, b: 0, l: 0, w: 1 })
+  if (!insets.has(src)) insets.set(src, (async () => {
+    const { data, info } = await sharp(`src/assets/${src}`).ensureAlpha().extractChannel(3).raw().toBuffer({ resolveWithObject: true })
+    const { width: w, height: h } = info
+    let t = h, b = -1, l = w, rt = -1
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (data[y * w + x] > 200) { if (y < t) t = y; b = y; if (x < l) l = x; if (x > rt) rt = x }
+    return b < 0 ? { t: 0, b: 0, l: 0, w: 1 } : { t: t / h, b: (h - 1 - b) / h, l: l / w, w: (rt - l + 1) / w }
+  })())
+  return insets.get(src)!
+}
+// A sheet's crop is as wide as it was on the page: its file's width over the -2x or -3x it was taken at.
+const cssw = (src: string) => source(src).width / Number(src.match(/-(\d)x\.png$/)?.[1] ?? 1)
+const r = (x: { width: number; height: number }) => x.width / x.height
+// A phone beside a MacBook or a Studio Display shows at its real size against it (Thomas, 6 November).
+// Apple's tech specs: iPhone 18 Pro 150.0 mm tall, MacBook Pro 16-inch 355.7 mm wide, Studio Display
+// XDR 623 mm wide. The device is told by the shape of its solid part: a phone stands, the display
+// with its stand is near 4:3, the MacBook is wider. Each image's height in mm sets its share of the row.
+const mm = (pic: { width: number; height: number }, i: { t: number; b: number; w: number }) => {
+  const solid = (i.w * r(pic)) / (1 - i.t - i.b)
+  return solid < 0.8 ? 150 / (1 - i.t - i.b) : solid < 1.4 ? 623 / (i.w * r(pic)) : 355.7 / (i.w * r(pic))
+}
+const scales = (pl: { shots: { src: string }[]; pics: { width: number; height: number }[]; ins: { t: number; b: number; w: number }[] }) => {
+  const kinds = pl.pics.map((x, i) => (pl.shots[i].src.includes('/mock/') ? ((pl.ins[i].w * r(x)) / (1 - pl.ins[i].t - pl.ins[i].b) < 0.8 ? 'phone' : 'big') : 'flat'))
+  if (!(kinds.includes('phone') && kinds.includes('big')) || kinds.includes('flat')) return pl.pics.map(() => 1)
+  const h = pl.pics.map((x, i) => mm(x, pl.ins[i])), top = Math.max(...h)
+  return h.map((v) => v / top)
+}
+const plates = (await Promise.all((p.gallery ?? []).map(async (pl) => ({
+  ...pl,
+  pics: await Promise.all(pl.shots.map((s) => plate(s.src))),
+  ins: await Promise.all(pl.shots.map((s) => inset(s.src))),
+  ws: pl.shots.map((s) => cssw(s.src)),
+})))).map((pl) => ({ ...pl, s: scales(pl) }))
+// In a scaled pair the images stand on one line, but each has its own shadow below the device. Move each
+// so the foot of its device meets the foot of the biggest one: a share of its own height (down is plus).
+const dy = (pl: { s: number[]; ins: { b: number }[] }, i: number) => {
+  if (!pl.s.some((v) => v < 1)) return 0
+  const k = pl.s.indexOf(1)
+  return pl.ins[i].b - pl.ins[k].b / pl.s[i]
+}
+// The empty canvas under the biggest device of a scaled pair, as a share of the row's width: its
+// height is the row's width over the sum of the shapes (each grows by r times s), times its --b.
+const foot = (pl: { s: number[]; ins: { b: number }[]; pics: { width: number; height: number }[] }) => {
+  if (!pl.s.some((v) => v < 1)) return undefined
+  return (pl.ins[pl.s.indexOf(1)].b / pl.pics.reduce((a, x, j) => a + r(x) * pl.s[j], 0)).toFixed(4)
+}
+// I7: the brand cases whose mark is in src/assets/marks.
+const MARK: Record<string, string> = { 'healthy-campus-week': 'hcw', 'good-word': 'goodword', operationshero: 'operationshero', 'love-your-body-week': 'lybw', 'the-flavor-scroll': 'tfs', nydex: 'nydex' }
+// Chapters (owner, 11 November: the story runs through the work, not after it). Each story section
+// is followed by the plates that show it. A plate may name its section (`at`, an index into story);
+// a plate without one follows the plate before it. With no `at` anywhere, the plates spread over the
+// sections in order and in proportion to each section's text, the lead plate with the first section
+// and the last plates with the last; with fewer plates than sections the middle ones run as text. A case with no story keeps one part, The work; past six plates its
+// outcome lines break the run into groups, as short ruled notes, and leave Results.
+const atOf = (k: number) => (p.gallery![k] as { at?: number }).at
+const story = p.story ?? []
+const notes = !story.length && plates.length > 6 ? (p.outcomes ?? []) : []
+const nCh = story.length || notes.length + 1
+const chOf: number[] = []
+if (story.length && plates.some((_, k) => atOf(k) !== undefined)) plates.forEach((_, k) => (chOf[k] = Math.min(story.length - 1, atOf(k) ?? chOf[k - 1] ?? 0)))
+else {
+  // Each section's share is half an even split and half its share of the text, so a long section
+  // earns a plate or two more without taking the run; each plate goes to the section whose share
+  // holds the plate's middle. The lead plate stays with the first section, the last with the last.
+  const len = story.map((st) => st.p.join(' ').length), all = len.reduce((x, y) => x + y, 0)
+  const w = story.length ? len.map((l) => 0.5 / nCh + (0.5 * l) / all) : Array(nCh).fill(1 / nCh)
+  const total = 1
+  plates.forEach((_, k) => { let c = 0, acc = w[0]; while (c < nCh - 1 && acc < ((k + 0.5) / plates.length) * total) acc += w[++c]; chOf[k] = c })
+  if (plates.length) { chOf[0] = 0; chOf[plates.length - 1] = nCh - 1 }
+}
+const chapters = Array.from({ length: nCh }, (_, c) => plates.map((_, k) => k).filter((k) => chOf[k] === c))
+// The gallery as an edited sequence, decided by the data, not by project (design sweep, 11 November).
+// The first plate leads at full width. Inside a chapter a plate of one still pairs with the next
+// plate of one still: the two stand at one height, each as wide as its shape, so two screens go half
+// and half and a poster beside a screen goes about a third beside two thirds. After a pair the next
+// lone still stands full, so the run alternates. Rows of shots, sheets, films and very wide shots
+// stay full; a gallery of three or fewer never pairs, so a short case shows each plate large.
+const lone = (k?: number) => { const pl = k === undefined ? undefined : plates[k]; return !!pl && pl.shots.length === 1 && !pl.sheet && !pl.shots[0].video && r(pl.pics[0]) <= 2.2 }
+const mate: number[] = []
+for (const ch of chapters) for (let j = 0, after = false; j < ch.length; j++) {
+  const k = ch[j], m = ch[j + 1]
+  if (k > 0 && plates.length > 3 && !after && lone(k) && lone(m) && r(plates[k].pics[0]) + r(plates[m].pics[0]) >= 1.4) { mate[k] = m; mate[m] = k; j++; after = true }
+  else after = false
+}
+// A phone plate beside a display or MacBook plate is one scene too: the phone at its real size against
+// it (ms, each plate's scale; --fr, its share of the row, is its shape times that).
+const ms: number[] = []
+mate.forEach((m, k) => { if (k < m) [ms[k], ms[m]] = scales({ shots: [plates[k].shots[0], plates[m].shots[0]], pics: [plates[k].pics[0], plates[m].pics[0]], ins: [plates[k].ins[0], plates[m].ins[0]] }) })
+const fr = (k: number) => r(plates[k].pics[0]) * (ms[k] ?? 1)
+// Below 1440 a real-size phone came out under 100 px wide (1024: 91 px, 1280: 99 px, its caption four lines), so
+// the pair stacks: the display full, the phone on its own row as tall as the display (site.css, 14 November).
+// A phone beside a MacBook in one plate stacks under it from 600 to 899 px (it came out 92 to 122 px
+// wide), its device as tall as the MacBook's: --k device to device, --mar the MacBook's shape.
+const inPlate = (pl: (typeof plates)[number], i: number) => {
+  const j = pl.s.indexOf(Math.max(...pl.s)), d = pl.ins[j], p = pl.ins[i]
+  return `; --k: ${((1 - d.t - d.b) / (1 - p.t - p.b)).toFixed(4)}; --mar: ${r(pl.pics[j]).toFixed(4)}`
+}
+const real = (k: number) => mate[k] !== undefined && Math.min(ms[k] ?? 1, ms[mate[k]] ?? 1) < 1
+// Stacked, the phone's device stands as tall as the display's (--k, against the display's canvas
+// height; their canvases pad the device unevenly), and each keeps the display's empty share under its
+// device, half of it, so both captions sit as far below (--sb, a share of the plate's own canvas).
+const stackAt = (k: number) => {
+  const big = (ms[k] ?? 1) >= (ms[mate[k]] ?? 1) ? k : mate[k], d = plates[big].ins[0], p = plates[k].ins[0]
+  const kk = big === k ? 1 : (1 - d.t - d.b) / (1 - p.t - p.b)
+  return { k: kk, sb: p.b - d.b / (2 * kk) }
+}
+// The two plates of a pair stand from one top line. Each device moves down (--dy) until its foot meets
+// the deeper foot, and gives back the empty canvas under it (--pb) so its caption sits as far under that
+// line as a lone device's does under its own, half the deeper one's empty canvas: both feet on one line,
+// both captions on one line. Shares of the plate's own canvas height; foot is in units of the
+// unscaled canvas height.
+const pairAt = (k: number) => {
+  const s = [ms[k], ms[mate[k]]], b = [plates[k].ins[0].b, plates[mate[k]].ins[0].b]
+  const foot = s.map((v, j) => v * (1 - b[j])), f = foot[0] >= foot[1] ? 0 : 1
+  return { dy: foot[f] / s[0] - (1 - b[0]), pb: b[0] - (0.5 * s[f] * b[f]) / s[0] }
+}
+// Figures are numbered in the order they show.
+const figNo: number[] = []
+chapters.flat().forEach((k, i) => (figNo[k] = i + 1))
+const kind = (k: number, sheet?: boolean) => (sheet ? 'sheet' : k === 1 ? 'one' : k === 2 ? 'two' : 'many')
+// On a phone a row of phones goes three across, four go two by two.
+const cols = (k: number) => (k <= 3 ? k : k === 4 ? 2 : 3)
+const sizes = (pl: (typeof plates)[number], i: number, k: number) => {
+  if (pl.sheet) return `(min-width: 900px) ${Math.round((84 * pl.ws[i]) / pl.ws.reduce((a, w) => a + w, 0))}vw, ${Math.min(100, Math.round(r(pl.pics[i]) * 100))}vw`
+  const n = pl.shots.length, share = (r(pl.pics[i]) * pl.s[i]) / pl.pics.reduce((a, x, j) => a + r(x) * pl.s[j], 0)
+  const part = mate[k] === undefined ? 1 : fr(k) / (fr(k) + fr(mate[k]))
+  const wide = Math.round(92 * part * share)
+  // A phone at real size beside a MacBook or a display stacks under it on a phone, at 60% (site.css).
+  const narrow = n === 1 ? ((ms[k] ?? 1) < 1 ? 60 : 100) : pl.s.some((v) => v < 1) ? (pl.s[i] < 1 ? 60 : 100) : n === 2 ? Math.round(100 * share) : Math.round(100 / cols(n))
+  if (real(k)) return `(min-width: 1440px) ${wide}vw, (min-width: 600px) ${Math.round(Math.min(92, (92 * r(pl.pics[i]) * stackAt(k).k) / r(plates[mate[k]].pics[0])))}vw, ${narrow}vw`
+  return `(min-width: 900px) ${wide}vw, ${narrow}vw`
+}
+// The mark's construction follows the chapter that introduces the brand, when a heading says so;
+// otherwise it comes before the first chapter. Good Word's covers follow its chapter on the week.
+const markAt = MARK[p.slug] ? story.findIndex((s) => /mark|brand|logo|identity/i.test(s.h)) : -2
+const weeksAt = p.slug === 'good-word' ? Math.max(0, story.findIndex((s) => /week/i.test(s.h))) : -2
+// The parts of the page, in reading order, for the Contents capsule. A page with eight or more
+// plates and story sections together is long enough to need it (design sweep, 11 November).
+const hasResults = !!(p.figures || p.credit || (p.outcomes && !notes.length))
+const T = (id: string, l: string): [string, string] => [id, l]
+const chParts: [string, string][] = story.length ? story.flatMap((s, i) => [T(`ch-${i}`, s.h), ...(markAt === i ? [T('mark-h', 'Mark build')] : []), ...(weeksAt === i ? [T('weeks-h', 'Every week’s cover')] : [])]) : plates.length ? [T('part-work', 'The work')] : []
+const parts: [string, string][] = [
+  T('part-why', 'Overview'),
+  ...(hasResults ? [T('part-results', 'Results')] : []),
+  ...(markAt === -1 ? [T('mark-h', 'Mark build')] : []),
+  ...chParts,
+  ...(p.learned ? [T('learned-h', 'What he learned')] : []),
+  ...(p.prototypes ? [T('proto-h', p.prototypes.length > 1 ? 'Prototypes' : 'Prototype')] : []),
+]
+const url = `${SITE}/projects/${p.slug}`
+const work = {
+  '@type': 'CreativeWork',
+  '@id': `${url}#work`,
+  name: p.name,
+  headline: p.claim,
+  description: p.lede,
+  url,
+  dateCreated: p.facts[1].slice(0, 4),
+  creator: { '@id': `${SITE}/#thomas` },
+  about: p.facts[0],
+  keywords: p.facts[2],
+  isPartOf: { '@id': `${SITE}/#site` },
+}
+const KEYS = ['Role', 'Year', 'Made with', 'For']
+const toEmbed = (u: string) => `https://www.figma.com/embed?embed_host=share&url=${encodeURIComponent(u)}`
+---
+<Base title={p.title} description={p.description} kind="case" page={p.slug} image={`og/${p.slug}.png`} graph={[work]}>
+  <article class="w case">
+    <header class="case-head">
+      <p class="crumb"><a class="up" href="/projects"><Arrow back /><span>Work</span></a><span class="num">{p.num}</span></p>
+      <h1 class="title"><span class="t"><Ending text={p.name} /></span></h1>
+    </header>
+    {/* The opening (design sweep, 11 November): the hero and, beside it, the claim, the lede and the
+        main link; under both, the facts as one ruled strip, so the first screen says what it is, his
+        role and what came of it. */}
+    <div class="case-top" id="top">
+      <figure class="hero" data-sheet={SHEETS[p.slug] ? 'on' : undefined}><img src={h.src} srcset={h.srcset} sizes={SIZES.hero} alt={p.alt} width={h.width} height={h.height} fetchpriority="high" style={standIn(t)} />{SHEETS[p.slug] && <Sheet sheet={SHEETS[p.slug]} mark={MARK[p.slug]} />}</figure>
+      <div class="about">
+        <p class="claim">{p.claim}</p>
+        {p.lede !== p.claim && <p class="lede">{p.lede}</p>}
+        {/* The live site or deck, then each Figma prototype in a new tab, though the page embeds them too (Thomas, 6 November). */}
+        {/* The first is the case's main action and takes the button (audit, 10 November). */}
+        {visit.length > 0 && <ul class="visit">{visit.map(([text, href], i) => <li>{href.startsWith('/')
+          ? <a class={i ? 'rule' : 'button'} href={href}>{text}<Arrow /></a>
+          : <a class={i ? 'rule' : 'button'} href={href} target="_blank" rel="noopener">{text}<Arrow out /><span class="sr"> (opens in a new tab)</span></a>}</li>)}</ul>}
+      </div>
+    </div>
+    <dl class="case-facts">{p.facts.map((v, i) => <div><dt>{KEYS[i]}</dt><dd>{v}</dd></div>)}</dl>
+    {parts.length >= 3 && <Contents items={parts} />}
+
+    {/* Each part opens on a rule with its heading at the left edge; its text starts on the eighth
+        column, the page's one text edge. Wide parts (the gallery, the mark, the prototype) run the
+        full width under their heading. C1 (round 7, Thomas picked a): the problem and what changed
+        stay in two columns. */}
+    <section class="cp" aria-labelledby="part-why">
+      <h2 class="cp-h" id="part-why">Overview</h2>
+      <div class="why-p"><h3>The problem</h3><p>{p.problem}</p></div>
+      <div class="why-i"><h3>What changed</h3><p>{p.impact}</p></div>
+    </section>
+
+    {hasResults && (
+      <section class="cp" aria-labelledby="part-results">
+        <h2 class="cp-h" id="part-results">Results</h2>
+        {p.figures && <ul class="figures">{p.figures.map(([v, c, pf], i) => {
+          // I4: each digit on its own wheel; the real figure is read out once, the wheels are hidden.
+          const odo = <span class="v"><span class="sr">{v}</span><span class="odo" aria-hidden="true">{[...v].map((ch, k) => /\d/.test(ch) ? <span class="wh" style={`--d: ${ch}; --k: ${v.length - 1 - k}`}><span class="col">{[...'0123456789'].map((n) => <span>{n}</span>)}</span></span> : <span>{ch}</span>)}</span></span>
+          return <li>{pf ? <button class="fig-open" type="button" aria-expanded="false" aria-controls={`pf-${i}`}>{odo}<span class="c">{c}<span class="pf-cue" aria-hidden="true"></span></span></button> : <>{odo}<span class="c">{c}</span></>}</li>
+        })}</ul>}
+        {p.figures?.map(([, c, pf], i) => pf && <div class="pf-panel" id={`pf-${i}`} role="region" aria-label={`Proof: ${c}`} hidden><div class="pf-in"><Proof kind={pf} /></div></div>)}
+        {p.outcomes && !notes.length && <ul class="outcomes">{p.outcomes.map((o) => <li>{o}</li>)}</ul>}
+        {p.credit && <p class="credit">{p.credit}</p>}
+      </section>
+    )}
+
+    {markAt === -1 && (
+      <section class="cp wide" aria-labelledby="mark-h">
+        <h2 class="cp-h" id="mark-h">How the mark is built</h2>
+        <Draw slug={MARK[p.slug]} name={p.name} />
+      </section>
+    )}
+
+    {/* The chapters: a story section's heading and text, then its plates. Without a story, one part,
+        The work, whose later groups open on an outcome line. */}
+    {chapters.map((ch, c) => {
+      const Tag = !story.length && c > 0 ? 'div' : 'section'
+      return <>
+        <Tag class:list={['cp', !story.length && 'wide', !story.length && c > 0 && 'cont']} aria-labelledby={Tag === 'section' ? (story.length ? `ch-${c}` : 'part-work') : undefined}>
+          {story.length ? <>
+            <h2 class="cp-h" id={`ch-${c}`}>{story[c].h}</h2>
+            <div class:list={['ch-text', story[c].p.length >= 3 && 'two']}>{story[c].p.map((t) => <p>{t}</p>)}</div>
+          </> : c === 0 ? <h2 class="cp-h" id="part-work">The work</h2> : <p class="wnote">{notes[c - 1]}</p>}
+          {ch.length > 0 && (
+            <div class="gallery">
+              {ch.map((k) => { const pl = plates[k]; return (
+                <figure class:list={['plate', mate[k] === undefined ? 'full' : 'pair', pl.shots.length === 1 && r(pl.pics[0]) < 1.2 && 'tall', real(k) && 'real']} style={mate[k] !== undefined && `--fr: ${fr(k).toFixed(4)}; --l: ${pl.ins[0].l.toFixed(4)}; --mar: ${r(plates[mate[k]].pics[0]).toFixed(4)}${real(k) ? `; --k: ${stackAt(k).k.toFixed(4)}; --sb: ${stackAt(k).sb.toFixed(4)}` : ''}`}>
+                  <div class:list={['shots', kind(pl.shots.length, pl.sheet), pl.s.some((v) => v < 1) && 'scaled']} style={`--cols: ${cols(pl.shots.length)}${foot(pl) ? `; --foot: ${foot(pl)}` : ''}`}>
+                    {pl.shots.map((s, i) => (
+                      <span class:list={['shot', (pl.s[i] < 1 || (ms[k] ?? 1) < 1) && 'small']} style={`--ar: ${r(pl.pics[i]).toFixed(4)}; --t: ${pl.ins[i].t.toFixed(4)}; --b: ${pl.ins[i].b.toFixed(4)}; --l: ${pl.ins[i].l.toFixed(4)}; --w: ${Math.round(pl.ws[i])}; --s: ${pl.s[i].toFixed(4)}; --dy: ${(mate[k] === undefined ? dy(pl, i) : pairAt(k).dy).toFixed(4)}${mate[k] === undefined ? '' : `; --pb: ${pairAt(k).pb.toFixed(4)}`}${pl.s[i] < 1 ? inPlate(pl, i) : ''}`}><Frame pic={pl.pics[i]} alt={s.alt} sizes={sizes(pl, i, k)} i={i} cls={pl.sheet ? 'rule' : s.src.includes('/mock/') ? 'bare' : undefined} video={s.video} film={s.film} plain />{s.label && <span>{s.label}</span>}</span>
+                    ))}
+                  </div>
+                  <figcaption><span class="num">Fig. {String(figNo[k]).padStart(2, '0')}</span> {pl.caption}</figcaption>
+                </figure>
+              ) })}
+            </div>
+          )}
+        </Tag>
+        {markAt === c && (
+          <section class="cp wide" aria-labelledby="mark-h">
+            <h2 class="cp-h" id="mark-h">How the mark is built</h2>
+            <Draw slug={MARK[p.slug]} name={p.name} />
+          </section>
+        )}
+        {weeksAt === c && <Weeks />}
+      </>
+    })}
+
+    {p.learned && (
+      <section class="cp" aria-labelledby="learned-h">
+        <h2 class="cp-h" id="learned-h">What he learned</h2>
+        <div class:list={['ch-text', p.learned.length >= 3 && 'two']}>{p.learned.map((t) => <p>{t}</p>)}</div>
+      </section>
+    )}
+
+    {/* Round 8: the Figma prototype, when there is one. Nothing loads from Figma until the reader
+        presses the button (Figma sets its own cookies); the link opens it in a new tab either way. */}
+    {p.prototypes && (
+      <section class="cp wide proto" aria-labelledby="proto-h" data-name={p.name} data-embed={toEmbed(p.prototypes[0][1])}>
+        <h2 class="cp-h" id="proto-h">{p.prototypes.length > 1 ? 'Prototypes' : 'Prototype'}</h2>
+        <div class="proto-bar">
+          {p.prototypes.length > 1 && (
+            <div class="proto-tabs" role="group" aria-label="Which prototype">
+              {p.prototypes.map(([l, u], i) => <button type="button" aria-pressed={i === 0 ? 'true' : 'false'} data-embed={toEmbed(u)} data-url={u}>{l}</button>)}
+            </div>
+          )}
+          <a class="rule proto-open" href={p.prototypes[0][1]} target="_blank" rel="noopener">Open in Figma<span class="sr"> (opens in a new tab)</span></a>
+        </div>
+        <div class="proto-stage">
+          <button class="button proto-load" type="button">Load the live prototype</button>
+          <p class="proto-note">It loads from Figma, which may set its own cookies.</p>
+        </div>
+      </section>
+    )}
+  </article>
+</Base>

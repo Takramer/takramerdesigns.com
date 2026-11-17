@@ -1,0 +1,9 @@
+---
+// Arrows on the back arrow's stroke: "back" points left, up to a list; the plain one points right,
+// at the mail link; "out" points up and to the right, at a link that leaves the site; "down" points
+// down, at a file that downloads.
+const { out = false, back = false, down = false } = Astro.props as { out?: boolean; back?: boolean; down?: boolean }
+---
+{out || down
+  ? <svg class={out ? 'arr out' : 'arr down'} viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d={out ? 'M2.5 1H11v8.5M11 1 1 11' : 'M1.5 6 6 10.5 10.5 6M6 10.5V0.5'} fill="none" stroke="currentColor" stroke-width="1.5" /></svg>
+  : <svg class="arr" viewBox="0 0 20 14" aria-hidden="true" focusable="false"><path d={back ? 'M7.5 1 1.5 7l6 6M1.5 7H20' : 'M12.5 1l6 6-6 6M18.5 7H0'} fill="none" stroke="currentColor" stroke-width="2" /></svg>}

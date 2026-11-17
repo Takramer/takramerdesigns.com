@@ -1,0 +1,76 @@
+---
+import Base from '../layouts/Base.astro'
+import Ending from '../components/Ending.astro'
+import Glance from '../components/home/Glance.astro'
+import ResultsDrawn from '../components/home/ResultsDrawn.astro'
+import Marks from '../components/home/Marks.astro'
+import UsageLite from '../components/home/UsageLite.astro'
+import Arrow from '../components/Arrow.astro'
+import { PROJECTS, BY, COVER } from '../data/projects'
+import { SITE } from '../data/site'
+import { thumb, SIZES } from '../lib/img'
+
+// Home (07 5.1; 10-copy 1; N1): the cover and its stage with four projects, At a glance, three more
+// projects as the Work page's cards (Thomas, 11 November: not all six), then Results, Marks and the
+// token panel, then the contact block and footer.
+const cover = await Promise.all(COVER.map(async (s) => ({ p: BY[s], t: await thumb(BY[s].thumb) })))
+const SPANS = [[10, 0], [6, 10], [4, 16], [4, 20]] // (span, offset) in 24ths: the lead in focus
+// Three of the six the cover leaves out, one per year and kind: an ongoing client feed (brand, 2025
+// to 2026), the BFA thesis (brand and product, 2025) and a campus campaign with its reach (brand, 2024).
+const MORE = ['good-word', 'the-flavor-scroll', 'love-your-body-week']
+const frames = await Promise.all(MORE.map(async (s) => ({ p: BY[s], t: await thumb(BY[s].thumb) })))
+
+const list = {
+  '@type': 'ItemList',
+  '@id': `${SITE}/projects#list`,
+  name: 'All projects',
+  numberOfItems: PROJECTS.length,
+  itemListElement: PROJECTS.map((p, i) => ({ '@type': 'ListItem', position: i + 1, url: `${SITE}/projects/${p.slug}`, name: p.name })),
+}
+---
+<Base
+  title="Thomas Kramer, brand and product designer | TAKramer Designs"
+  description="Thomas Kramer is a brand and product designer who builds what he designs. Case studies include Underline, Nydex, Grace One Church and Healthy Campus Week."
+  kind="list"
+  page="home"
+  graph={[list]}
+>
+  <section class="stage w" aria-label="Selected work">
+    <div class="cover">
+      <h1 class="role"><span class="l1"><span class="who">Thomas Kramer,</span> brand and product designer</span> <span class="l2"><Ending text="who builds what he designs." /></span></h1>
+      <ul class="row">
+        {cover.map(({ p, t }, i) => (
+          <li class="card" style={`--n:${SPANS[i][0]};--o:${SPANS[i][1]}`}>
+            <a href={`/projects/${p.slug}`} data-slug={p.slug} data-vt={`cover:${p.slug}`}>
+              <span class="frame"><span class="mover"><span class="counter"><img src={t.src} srcset={t.srcset} sizes={SIZES.cover} alt="" width={t.width} height={t.height} fetchpriority={i === 0 ? 'high' : undefined} /></span></span></span>
+              <span class="cap"><span class="n">{p.name}.</span><span class="c">{p.claim}</span></span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
+
+  <Glance />
+  <section class="more sec w" aria-labelledby="more-h">
+    <h2 id="more-h" class="work-h">More projects</h2>
+    <ul class="pj">
+      {frames.map(({ p, t }) => (
+        <li>
+          <a class="card" href={`/projects/${p.slug}`} data-slug={p.slug} data-vt={`more:${p.slug}`}>
+            <span class="fr"><img src={t.src} srcset={t.srcset} sizes={SIZES.work} alt={p.alt} width={t.width} height={t.height} loading="lazy" decoding="async" /></span>
+            <span class="cap"><span class="n">{p.name}</span><span class="c">{p.line}</span><span class="rl"><span>{p.facts[0]}</span><span>{p.facts[1]}</span></span></span>
+          </a>
+        </li>
+      ))}
+    </ul>
+    <div class="pj-act">
+      <p><a class="button" href="/projects">All projects<Arrow /></a></p>
+      <p class="read pj-quiet"><a href="/one-offs"><span>One-offs</span><Arrow /></a></p>
+    </div>
+  </section>
+
+  <ResultsDrawn />
+  <Marks />
+  <UsageLite />
+</Base>

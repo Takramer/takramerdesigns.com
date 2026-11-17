@@ -1,0 +1,11 @@
+{
+  "change": "Phone pass, round two: closed scrolling capsules, a centred ground toggle, a grid section that shows the reader's own window, and ten more voice rules. Round one (pinned logo specimen, steadier menu taps, fewer style-guide rules) is still here.",
+  "date": "November 12, 2026",
+  "pages": [
+    ["One-offs", "/one-offs", "On a phone the filters sit in one closed capsule as wide as the page; the last label is cut mid-word where the row goes on."],
+    ["Logos", "/logos", "On a phone the light and dark swatches sit centred in their buttons, with or without the glass on them. The specimen stays pinned above the library."],
+    ["Style guide, grid", "/style#grid-h", "On a phone the strip shows one full-width column; on a tablet the column numbers fit. The table marks the row for this window."],
+    ["Style guide, controls", "/style#ctl-h", "The example nav capsule scrolls under the real Contents capsule instead of over it."],
+    ["Style guide, voice", "/style#voice-h", "Fifteen rules, each with a line to write and a line not to, from the site's copy direction."]
+  ]
+}

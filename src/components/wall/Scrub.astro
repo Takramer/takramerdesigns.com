@@ -1,0 +1,100 @@
+---
+import { PROJECTS, FILTERS, WALL_FRAMES, WALL_ALT } from '../../data/projects'
+import { thumb, SIZES } from '../../lib/img'
+
+// The Work wall, Scrub (Thomas picked it, 11 November): the wall keeps its grid, and each card shows the
+// project instead of one frame. The pointer scrubs the frames left to right; a swipe or the arrow keys
+// step them. Frames after the first load only when a card is first pointed at or focused, or nears the
+// window on a touch screen. The filters are site.js's: it and the glass pill take the first .filters.
+// Every frame's own alt: its gallery shot's, else WALL_ALT's, else the project's when it is the cover.
+const frameAlt = (p: (typeof PROJECTS)[number], f: string) =>
+  p.gallery?.flatMap((pl) => pl.shots).find((s) => s.src === f)?.alt ?? WALL_ALT[f] ?? (f === p.thumb ? p.alt : '')
+const items = await Promise.all(PROJECTS.map(async (p) => {
+  const t = await thumb(p.thumb)
+  return { p, pre: `${t.at[640]} ${t.at[1000] ?? t.at[640]}`, frames: await Promise.all(WALL_FRAMES[p.slug].map(async (f) => ({ ...(await thumb(f)), cover: f.startsWith('thumbs/'), alt: frameAlt(p, f) }))) }
+}))
+const count = (k: string) => (k === 'all' ? PROJECTS.length : PROJECTS.filter((p) => p.tags.includes(k as never)).length)
+// The size each first frame draws at: a big card is 46% of the window from 600 px, a small one 22% from
+// 900 px, and a device sits inside the frame's 4% padding, so it draws at 92% of that.
+const sizes = (big: boolean, cover: boolean) => cover
+  ? (big ? '(min-width: 600px) 46vw, 92vw' : SIZES.wall)
+  : (big ? '(min-width: 600px) 42vw, 85vw' : '(min-width: 900px) 21vw, (min-width: 600px) 42vw, 85vw')
+---
+<div class="seg"><div class="filters" role="group" aria-label="Filter projects">
+  {FILTERS.map(([k, label, msg]) => (
+    <button type="button" data-f={k} data-msg={msg} aria-pressed={k === 'all' ? 'true' : 'false'}><span>{label}</span><span class="num">{count(k)}</span></button>
+  ))}
+</div></div>
+<p class="sr" role="status" data-filter-status></p>
+<p id="sc-hint" class="sr">Left and right arrows show more of the project.</p>
+<ul class="wall scrub">
+  {items.map(({ p, pre, frames }, i) => (
+    <li data-tags={p.tags.join(' ')} class={i < 2 ? 'big' : undefined}>
+      <a class="card" href={`/projects/${p.slug}`} data-slug={p.slug} data-vt={`wall:${p.slug}`} data-pre={pre} aria-describedby="sc-hint">
+        <span class="fr">
+          {frames.map((f, k) => k === 0
+            ? <img class:list={['on', f.cover && 'cv']} src={f.src} srcset={f.srcset} sizes={sizes(i < 2, f.cover)} alt="" width={f.width} height={f.height} loading={i < 8 ? undefined : 'lazy'} decoding="async" />
+            : <img class:list={[f.cover && 'cv']} data-srcset={f.srcset} alt="" aria-hidden="true" width={f.width} height={f.height} decoding="async" />)}
+        </span>
+        <span class="rule" aria-hidden="true">{frames.map((_, k) => <i class={k === 0 ? 'on' : undefined} />)}</span>
+        <span class="cap">
+          <span class="num">{p.num}</span><span class="n">{p.name}</span><span class="c">{p.line}</span>
+          <span class="rl"><span>{p.facts[0]}</span><span>{p.facts[1]}</span></span>
+        </span>
+      </a>
+    </li>
+  ))}
+</ul>
+
+<style is:global>
+  /* Two large cards lead, then rows of four: any filter leaves 2, 2 + 4 or 2 + 4 + 4 (the script keeps
+     the first two shown large). */
+  .wall.scrub { grid-template-columns: repeat(12, minmax(0, 1fr)); row-gap: 48px; }
+  .scrub > li { grid-column: span 3; }
+  .scrub > li.big { grid-column: span 6; }
+  /* Every frame on the plain ground, the device whole inside it; a cover thumb fills the box. */
+  .scrub .fr { position: relative; display: block; aspect-ratio: 3 / 2; background: var(--mat); overflow: clip; touch-action: pan-y pinch-zoom; }
+  .scrub .fr img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; box-sizing: border-box; padding: 4%; opacity: 0; transition: opacity 120ms var(--ease), transform 120ms var(--ease); }
+  .scrub .fr img.cv { object-fit: cover; padding: 0; }
+  .scrub .fr img.on { opacity: 1; }
+  .scrub .snap .fr img, html.still .scrub .fr img { transition: none; }
+  .scrub .card:active .fr img { transform: scale(0.985); }
+  /* The rule: one segment a frame, the one on screen in ink. */
+  .scrub .rule { display: flex; gap: 3px; margin-top: 8px; }
+  .scrub .rule i { flex: 1; height: 2px; background: color-mix(in srgb, var(--carbon) 16%, transparent); transition: background-color 120ms var(--ease); }
+  .scrub .rule i.on { background: var(--carbon); }
+  .scrub .cap { margin-top: 10px; }
+  .scrub .num { font-size: 0.875rem; }
+  .scrub .cap .rl { grid-column: 2; display: flex; justify-content: space-between; gap: 12px; margin-top: 6px; font-size: 0.875rem; line-height: 1.25rem; color: var(--graphite); }
+  .scrub .cap .rl > :last-child { flex: none; font-variant-numeric: tabular-nums; }
+  @media (max-width: 899px) {
+    .wall.scrub { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .scrub > li, .scrub > li.big { grid-column: auto; }
+  }
+  @media (max-width: 599px) { .wall.scrub { grid-template-columns: minmax(0, 1fr); } }
+</style>
+
+<script>
+  import { prime, wire } from './scrub'
+  const wall = document.querySelector<HTMLElement>('.wall.scrub')
+  if (wall) {
+    const html = document.documentElement
+    const lis = [...wall.children] as HTMLElement[]
+    // The first two shown stand large under any filter. site.js sets data-filter inside its glide,
+    // so the new sizes glide with it.
+    const big = () => {
+      const f = html.dataset.filter
+      let k = 0
+      lis.forEach((li) => li.classList.toggle('big', (!f || li.dataset.tags!.split(' ').includes(f)) && k++ < 2))
+    }
+    big()
+    new MutationObserver(big).observe(html, { attributes: true, attributeFilter: ['data-filter'] })
+    wire(wall)
+    // On a touch screen a card's frames load once the reader has scrolled and the card is in view,
+    // so the first load costs what the one-frame wall did; a touch on a card loads them too.
+    if (matchMedia('(pointer: coarse)').matches) addEventListener('scroll', () => {
+      const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { prime(e.target); io.unobserve(e.target) } }), { threshold: 0.5 })
+      wall.querySelectorAll('.card').forEach((c) => io.observe(c))
+    }, { once: true, passive: true })
+  }
+</script>
